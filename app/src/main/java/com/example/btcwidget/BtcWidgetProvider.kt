@@ -53,20 +53,6 @@ class BtcWidgetProvider : AppWidgetProvider() {
             }
         } else if (action == ACTION_REFRESH) {
             triggerVibration(context)
-            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                val appWidgetManager = AppWidgetManager.getInstance(context)
-                CoroutineScope(Dispatchers.Main).launch {
-                    for (angle in 0..360 step 30) {
-                        val views = RemoteViews(context.packageName, R.layout.btc_widget_blockclock)
-                        views.setFloat(R.id.btn_refresh, "setRotation", angle.toFloat())
-                        appWidgetManager.partiallyUpdateAppWidget(appWidgetId, views)
-                        delay(40)
-                    }
-                    val views = RemoteViews(context.packageName, R.layout.btc_widget_blockclock)
-                    views.setFloat(R.id.btn_refresh, "setRotation", 0f)
-                    appWidgetManager.partiallyUpdateAppWidget(appWidgetId, views)
-                }
-            }
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
@@ -213,7 +199,6 @@ class BtcWidgetProvider : AppWidgetProvider() {
         views.setTextColor(R.id.txt_blockclock_value, valueColor)
         views.setTextColor(R.id.txt_blockclock_suffix, labelColor)
         views.setTextColor(R.id.txt_blockclock_sub, subTextColor)
-        views.setInt(R.id.btn_refresh, "setColorFilter", subTextColor)
         views.setInt(R.id.lbl_divider, "setBackgroundColor", labelColor)
 
         // Bind data based on active mode
@@ -381,8 +366,7 @@ class BtcWidgetProvider : AppWidgetProvider() {
 
         // Bind navigation click intents (Tapping on central layout cycles mode)
         views.setOnClickPendingIntent(R.id.center_layout, getPendingSelfIntent(context, appWidgetId, ACTION_NEXT_MODE))
-        // Bind refresh click intent
-        views.setOnClickPendingIntent(R.id.btn_refresh, getPendingSelfIntent(context, appWidgetId, ACTION_REFRESH))
+        views.setOnClickPendingIntent(R.id.linear_layout, getPendingSelfIntent(context, appWidgetId, ACTION_NEXT_MODE))
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }

@@ -112,9 +112,7 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:layout_toStartOf="@id/btn_refresh_left"
+                android:layout_centerInParent="true"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
@@ -138,17 +136,6 @@
                     android:singleLine="true"
                     android:ellipsize="end" />
             </LinearLayout>
-
-            <ImageView
-                android:id="@+id/btn_refresh_left"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:src="@drawable/ic_refresh"
-                android:padding="3dp"
-                android:clickable="true"
-                android:focusable="true" />
         </RelativeLayout>
     </RelativeLayout>
 
@@ -257,9 +244,7 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:layout_toStartOf="@id/btn_refresh_right"
+                android:layout_centerInParent="true"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
@@ -283,17 +268,6 @@
                     android:singleLine="true"
                     android:ellipsize="end" />
             </LinearLayout>
-
-            <ImageView
-                android:id="@+id/btn_refresh_right"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:src="@drawable/ic_refresh"
-                android:padding="3dp"
-                android:clickable="true"
-                android:focusable="true" />
         </RelativeLayout>
     </RelativeLayout>
 </LinearLayout>

@@ -45,6 +45,7 @@ fun MainScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val prefs = remember { context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE) }
     var currentTheme by remember { mutableStateOf(prefs.getInt("blockclock_theme", 0)) }
+    var showSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadInitialData(context)
@@ -58,6 +59,10 @@ fun MainScreen(
             action = BtcWidgetProvider.ACTION_REFRESH
         }
         context.sendBroadcast(intent)
+        val dualIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
+            action = BtcDualWidgetProvider.ACTION_REFRESH
+        }
+        context.sendBroadcast(dualIntent)
     }
 
     // Map theme colors
@@ -123,10 +128,11 @@ fun MainScreen(
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            HeaderSection(titleColor = themeBorderColor, subtitleColor = themeLabelColor)
-
-            // Theme selector UI
-            ThemeSelectorSection(currentTheme = currentTheme, onThemeSelected = onThemeSelected, labelColor = themeLabelColor)
+            HeaderSection(
+                titleColor = themeBorderColor,
+                subtitleColor = themeLabelColor,
+                onSettingsClick = { showSettings = true }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -137,26 +143,11 @@ fun MainScreen(
                 is MainScreenUiState.Success -> {
                     DashboardContent(
                         data = currentState.data,
-                        onRefresh = { viewModel.refreshData(context) },
-                        isLoading = false,
                         cardBgColor = themeCardBgColor,
                         borderColor = themeBorderColor,
                         valueColor = themeValueColor,
                         labelColor = themeLabelColor,
-                        subTextColor = themeSubTextColor,
-                        context = context,
-                        prefs = prefs,
-                        onSettingsChanged = {
-                            viewModel.refreshData(context)
-                            val widgetIntent = Intent(context, BtcWidgetProvider::class.java).apply {
-                                action = BtcWidgetProvider.ACTION_REFRESH
-                            }
-                            context.sendBroadcast(widgetIntent)
-                            val dualWidgetIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
-                                action = BtcDualWidgetProvider.ACTION_REFRESH
-                            }
-                            context.sendBroadcast(dualWidgetIntent)
-                        }
+                        subTextColor = themeSubTextColor
                     )
                 }
                 is MainScreenUiState.Error -> {
@@ -166,6 +157,32 @@ fun MainScreen(
                     )
                 }
             }
+        }
+
+        if (showSettings) {
+            SettingsDialog(
+                onDismissRequest = { showSettings = false },
+                currentTheme = currentTheme,
+                onThemeSelected = onThemeSelected,
+                context = context,
+                prefs = prefs,
+                onSettingsChanged = {
+                    viewModel.refreshData(context)
+                    val widgetIntent = Intent(context, BtcWidgetProvider::class.java).apply {
+                        action = BtcWidgetProvider.ACTION_REFRESH
+                    }
+                    context.sendBroadcast(widgetIntent)
+                    val dualWidgetIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
+                        action = BtcDualWidgetProvider.ACTION_REFRESH
+                    }
+                    context.sendBroadcast(dualWidgetIntent)
+                },
+                cardBgColor = themeCardBgColor,
+                borderColor = themeBorderColor,
+                valueColor = themeValueColor,
+                labelColor = themeLabelColor,
+                subTextColor = themeSubTextColor
+            )
         }
     }
 }
@@ -235,42 +252,60 @@ fun ThemeSelectorSection(
 }
 
 @Composable
-fun HeaderSection(titleColor: Color, subtitleColor: Color) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+fun HeaderSection(
+    titleColor: Color,
+    subtitleColor: Color,
+    onSettingsClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
     ) {
-        Text(
-            text = "SATOSHI DASHBOARD",
-            color = titleColor,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Serif,
-            letterSpacing = 1.sp
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "Blockclock Micro Console",
-            color = subtitleColor,
-            fontSize = 13.sp,
-            fontFamily = FontFamily.Serif
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "SATOSHI DASHBOARD",
+                color = titleColor,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif,
+                letterSpacing = 1.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Blockclock Micro Console",
+                color = subtitleColor,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Serif
+            )
+        }
+        IconButton(
+            onClick = onSettingsClick,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .size(40.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_settings),
+                contentDescription = "Settings",
+                tint = titleColor,
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }
 
 @Composable
 fun DashboardContent(
     data: PriceData,
-    onRefresh: () -> Unit,
-    isLoading: Boolean,
     cardBgColor: Color,
     borderColor: Color,
     valueColor: Color,
     labelColor: Color,
-    subTextColor: Color,
-    context: Context,
-    prefs: SharedPreferences,
-    onSettingsChanged: () -> Unit
+    subTextColor: Color
 ) {
     val currency = "USD"
     val symbol = "$"
@@ -508,20 +543,6 @@ fun DashboardContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Customization Settings Card
-        SettingsPanelCard(
-            context = context,
-            prefs = prefs,
-            onSettingsChanged = onSettingsChanged,
-            cardBgColor = cardBgColor,
-            borderColor = borderColor,
-            valueColor = valueColor,
-            labelColor = labelColor,
-            subTextColor = subTextColor
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Last updated text in monospaced design
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         Text(
@@ -530,14 +551,6 @@ fun DashboardContent(
             fontSize = 11.sp,
             fontFamily = FontFamily.Serif,
             modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        // Refresh Button
-        RefreshButton(
-            onRefresh = onRefresh,
-            isLoading = isLoading,
-            containerColor = borderColor,
-            contentColor = cardBgColor
         )
     }
 }
@@ -765,52 +778,100 @@ fun BlockclockCard(
 }
 
 @Composable
-fun RefreshButton(
-    onRefresh: () -> Unit,
-    isLoading: Boolean,
-    containerColor: Color = Color(0xFFC5A059),
-    contentColor: Color = Color(0xFF121214)
+fun SettingsDialog(
+    onDismissRequest: () -> Unit,
+    currentTheme: Int,
+    onThemeSelected: (Int) -> Unit,
+    context: Context,
+    prefs: SharedPreferences,
+    onSettingsChanged: () -> Unit,
+    cardBgColor: Color,
+    borderColor: Color,
+    valueColor: Color,
+    labelColor: Color,
+    subTextColor: Color
 ) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
-
-    Button(
-        onClick = { if (!isLoading) onRefresh() },
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier
-            .width(180.dp)
-            .height(48.dp)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .border(BorderStroke(1.5.dp, borderColor), shape = RoundedCornerShape(12.dp)),
+            shape = RoundedCornerShape(12.dp),
+            color = cardBgColor
         ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_refresh),
-                contentDescription = null,
-                tint = contentColor,
+            Column(
                 modifier = Modifier
-                    .size(20.dp)
-                    .rotate(if (isLoading) rotation else 0f)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (isLoading) "Refreshing..." else "Refresh",
-                color = contentColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "CONSOLE SETTINGS",
+                        color = valueColor,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
+                        letterSpacing = 1.sp
+                    )
+                    IconButton(onClick = onDismissRequest) {
+                        Text(
+                            text = "✕",
+                            color = valueColor,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ThemeSelectorSection(
+                    currentTheme = currentTheme,
+                    onThemeSelected = onThemeSelected,
+                    labelColor = labelColor
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SettingsPanelCard(
+                    context = context,
+                    prefs = prefs,
+                    onSettingsChanged = onSettingsChanged,
+                    cardBgColor = cardBgColor,
+                    borderColor = borderColor,
+                    valueColor = valueColor,
+                    labelColor = labelColor,
+                    subTextColor = subTextColor
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismissRequest,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = borderColor,
+                        contentColor = cardBgColor
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                ) {
+                    Text(
+                        text = "Apply & Close",
+                        color = cardBgColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Serif
+                    )
+                }
+            }
         }
     }
 }
@@ -859,6 +920,24 @@ fun ErrorScreen(error: Throwable, onRefresh: () -> Unit) {
             modifier = Modifier.padding(horizontal = 24.dp)
         )
         Spacer(modifier = Modifier.height(24.dp))
-        RefreshButton(onRefresh = onRefresh, isLoading = false)
+        Button(
+            onClick = onRefresh,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFEF4444),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .width(180.dp)
+                .height(48.dp)
+        ) {
+            Text(
+                text = "Retry",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                fontFamily = FontFamily.Serif
+            )
+        }
     }
 }

@@ -54,22 +54,6 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
             }
         } else if (action == ACTION_REFRESH) {
             triggerVibration(context)
-            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                val appWidgetManager = AppWidgetManager.getInstance(context)
-                CoroutineScope(Dispatchers.Main).launch {
-                    for (angle in 0..360 step 30) {
-                        val views = RemoteViews(context.packageName, R.layout.btc_widget_dual)
-                        views.setFloat(R.id.btn_refresh_left, "setRotation", angle.toFloat())
-                        views.setFloat(R.id.btn_refresh_right, "setRotation", angle.toFloat())
-                        appWidgetManager.partiallyUpdateAppWidget(appWidgetId, views)
-                        delay(40)
-                    }
-                    val views = RemoteViews(context.packageName, R.layout.btc_widget_dual)
-                    views.setFloat(R.id.btn_refresh_left, "setRotation", 0f)
-                    views.setFloat(R.id.btn_refresh_right, "setRotation", 0f)
-                    appWidgetManager.partiallyUpdateAppWidget(appWidgetId, views)
-                }
-            }
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
@@ -179,10 +163,6 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.center_layout_left, getPendingSelfIntent(context, appWidgetId, ACTION_NEXT_MODE_LEFT))
         views.setOnClickPendingIntent(R.id.center_layout_right, getPendingSelfIntent(context, appWidgetId, ACTION_NEXT_MODE_RIGHT))
 
-        // Bind refresh click intents on both panels
-        views.setOnClickPendingIntent(R.id.btn_refresh_left, getPendingSelfIntent(context, appWidgetId, ACTION_REFRESH))
-        views.setOnClickPendingIntent(R.id.btn_refresh_right, getPendingSelfIntent(context, appWidgetId, ACTION_REFRESH))
-
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 
@@ -214,7 +194,6 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
         views.setTextColor(suffixId, labelColor)
         views.setTextColor(subId, subTextColor)
         views.setInt(dividerId, "setBackgroundColor", labelColor)
-        views.setInt(if (isLeft) R.id.btn_refresh_left else R.id.btn_refresh_right, "setColorFilter", subTextColor)
 
         val currency = "USD"
         val symbol = "$"
