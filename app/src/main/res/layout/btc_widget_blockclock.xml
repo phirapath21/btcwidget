@@ -4,18 +4,18 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
-    android:padding="8dp">
+    android:padding="10dp">
 
-        <!-- Center Display Layout (Horizontally aligning scaled label, value, and suffix) -->
-        <LinearLayout
-            android:id="@+id/center_layout"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_above="@+id/footer"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true">
+    <!-- Center Display Layout (Horizontally aligning label, value, and suffix) -->
+    <LinearLayout
+        android:id="@+id/center_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/footer"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true">
 
         <!-- Stacked Label Container (Left side of value) -->
         <LinearLayout
@@ -24,7 +24,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center"
-            android:layout_marginRight="8dp">
+            android:layout_marginRight="8dp"
+            android:layout_marginEnd="8dp">
 
             <!-- Top text label (e.g. BTC, MSCW, MSTR) -->
             <TextView
@@ -32,16 +33,15 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#E4E4E7"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:textScaleX="0.8"
+                android:fontFamily="serif"
                 android:includeFontPadding="false" />
 
             <!-- Separator line -->
             <FrameLayout
                 android:id="@+id/lbl_divider"
-                android:layout_width="24dp"
+                android:layout_width="20dp"
                 android:layout_height="1dp"
                 android:background="#E4E4E7"
                 android:layout_marginVertical="2dp" />
@@ -52,24 +52,22 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#E4E4E7"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:textScaleX="0.8"
+                android:fontFamily="serif"
                 android:includeFontPadding="false" />
         </LinearLayout>
 
-        <!-- Large Display Value - Condensed to match the hardware screen -->
+        <!-- Large Display Value -->
         <TextView
             android:id="@+id/txt_blockclock_value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#E4E4E7"
-            android:textSize="40sp"
+            android:textSize="36sp"
             android:textStyle="bold"
-            android:fontFamily="monospace"
-            android:textScaleX="0.72"
-            android:letterSpacing="-0.03"
+            android:fontFamily="serif"
+            android:letterSpacing="-0.02"
             android:ellipsize="end"
             android:maxLines="1" />
 
@@ -80,41 +78,70 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center"
-            android:layout_marginLeft="6dp">
+            android:layout_marginLeft="6dp"
+            android:layout_marginStart="6dp">
 
             <TextView
                 android:id="@+id/txt_blockclock_suffix"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#E4E4E7"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:textScaleX="0.8"
+                android:fontFamily="serif"
                 android:includeFontPadding="false" />
         </LinearLayout>
-
     </LinearLayout>
 
-    <!-- Footer with Dynamic Subtitle Centered -->
+    <!-- Footer with Dynamic Subtitle and Refresh Button -->
     <RelativeLayout
         android:id="@+id/footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="4dp"
+        android:layout_marginHorizontal="6dp"
         android:layout_alignParentBottom="true">
 
-        <!-- Subtitle displays dynamic short description in lowercase, centered horizontally -->
-        <TextView
-            android:id="@+id/txt_blockclock_sub"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Market price of bitcoin"
-            android:textColor="#8E8E93"
-            android:textSize="9sp"
-            android:fontFamily="sans-serif-condensed"
-            android:layout_centerHorizontal="true"
+            android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
-            android:gravity="center" />
+            android:layout_toStartOf="@id/btn_refresh"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/txt_warning"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚠️ "
+                android:textSize="10sp"
+                android:visibility="gone"
+                android:layout_marginEnd="4dp" />
+
+            <!-- Subtitle displays dynamic short description in lowercase -->
+            <TextView
+                android:id="@+id/txt_blockclock_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Market price of bitcoin"
+                android:textColor="#8E8E93"
+                android:textSize="9.5sp"
+                android:fontFamily="serif"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- Refresh Button -->
+        <ImageView
+            android:id="@+id/btn_refresh"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_refresh"
+            android:padding="4dp"
+            android:clickable="true"
+            android:focusable="true" />
     </RelativeLayout>
 </RelativeLayout>

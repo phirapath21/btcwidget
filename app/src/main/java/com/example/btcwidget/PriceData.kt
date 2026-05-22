@@ -17,7 +17,12 @@ data class PriceData(
     val blockHeight: Int,
     val mstrBtcHeld: Double,
     val btcCirculation: Double,
-    val timestamp: Long
+    val timestamp: Long,
+    val currency: String = "USD",
+    val lastFetchSuccessful: Boolean = true,
+    val feeFastest: Int = 1,
+    val feeHalfHour: Int = 1,
+    val feeHour: Int = 1
 )
 
 object PriceRepository {
@@ -31,8 +36,13 @@ object PriceRepository {
     private const val KEY_MSTR_BTC_HELD = "mstr_btc_held"
     private const val KEY_BTC_CIRCULATION = "btc_circulation"
     private const val KEY_TIMESTAMP = "timestamp"
+    private const val KEY_CURRENCY = "currency"
+    private const val KEY_LAST_FETCH_SUCCESSFUL = "last_fetch_successful"
+    private const val KEY_FEE_FASTEST = "fee_fastest"
+    private const val KEY_FEE_HALF_HOUR = "fee_half_hour"
+    private const val KEY_FEE_HOUR = "fee_hour"
 
-    fun fetchPriceData(): PriceData? {
+    fun fetchPriceData(context: Context): PriceData? {
         return try {
             // 1. Fetch BTC/USD
             val btcUrl = URL("https://api.coinbase.com/v2/prices/BTC-USD/spot")
@@ -48,7 +58,7 @@ object PriceRepository {
             val btcObj = JSONObject(btcResponse)
             val btcPrice = btcObj.getJSONObject("data").getString("amount").toDouble()
 
-            // 2. Fetch MSTR/USD
+            // 2. Fetch MSTR/USD (from Yahoo Finance in USD)
             val mstrUrl = URL("https://query1.finance.yahoo.com/v8/finance/chart/MSTR")
             val mstrConn = mstrUrl.openConnection() as HttpURLConnection
             mstrConn.requestMethod = "GET"
@@ -98,8 +108,31 @@ object PriceRepository {
                 Log.e(TAG, "Error fetching circulating supply, using fallback", e)
             }
 
-            // MSTR BTC held: as of May 20, 2026, MicroStrategy holds exactly 843,738 BTC.
+            // MSTR BTC held
             val mstrBtcHeldVal = 843738.0
+
+            // 5. Fetch recommended fees from mempool.space
+            var fastestFeeVal = 1
+            var halfHourFeeVal = 1
+            var hourFeeVal = 1
+            try {
+                val feeUrl = URL("https://mempool.space/api/v1/fees/recommended")
+                val feeConn = feeUrl.openConnection() as HttpURLConnection
+                feeConn.requestMethod = "GET"
+                feeConn.connectTimeout = 8000
+                feeConn.readTimeout = 8000
+                val feeStream = feeConn.inputStream
+                val feeReader = BufferedReader(InputStreamReader(feeStream))
+                val feeResponse = feeReader.use { it.readText() }.trim()
+                feeConn.disconnect()
+
+                val feeObj = JSONObject(feeResponse)
+                fastestFeeVal = feeObj.getInt("fastestFee")
+                halfHourFeeVal = feeObj.getInt("halfHourFee")
+                hourFeeVal = feeObj.getInt("hourFee")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching recommended fees", e)
+            }
 
             PriceData(
                 btcUsd = btcPrice,
@@ -109,11 +142,21 @@ object PriceRepository {
                 blockHeight = height,
                 mstrBtcHeld = mstrBtcHeldVal,
                 btcCirculation = circulationVal,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
+                currency = "USD",
+                lastFetchSuccessful = true,
+                feeFastest = fastestFeeVal,
+                feeHalfHour = halfHourFeeVal,
+                feeHour = hourFeeVal
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching price data", e)
-            null
+            val cached = getFromPrefs(context)
+            if (cached != null) {
+                cached.copy(lastFetchSuccessful = false, timestamp = System.currentTimeMillis())
+            } else {
+                null
+            }
         }
     }
 
@@ -128,6 +171,11 @@ object PriceRepository {
             putFloat(KEY_MSTR_BTC_HELD, data.mstrBtcHeld.toFloat())
             putFloat(KEY_BTC_CIRCULATION, data.btcCirculation.toFloat())
             putLong(KEY_TIMESTAMP, data.timestamp)
+            putString(KEY_CURRENCY, data.currency)
+            putBoolean(KEY_LAST_FETCH_SUCCESSFUL, data.lastFetchSuccessful)
+            putInt(KEY_FEE_FASTEST, data.feeFastest)
+            putInt(KEY_FEE_HALF_HOUR, data.feeHalfHour)
+            putInt(KEY_FEE_HOUR, data.feeHour)
             apply()
         }
     }
@@ -144,7 +192,12 @@ object PriceRepository {
             blockHeight = prefs.getInt(KEY_BLOCK_HEIGHT, 0),
             mstrBtcHeld = prefs.getFloat(KEY_MSTR_BTC_HELD, 0f).toDouble(),
             btcCirculation = prefs.getFloat(KEY_BTC_CIRCULATION, 0f).toDouble(),
-            timestamp = prefs.getLong(KEY_TIMESTAMP, 0L)
+            timestamp = prefs.getLong(KEY_TIMESTAMP, 0L),
+            currency = prefs.getString(KEY_CURRENCY, "USD") ?: "USD",
+            lastFetchSuccessful = prefs.getBoolean(KEY_LAST_FETCH_SUCCESSFUL, true),
+            feeFastest = prefs.getInt(KEY_FEE_FASTEST, 1),
+            feeHalfHour = prefs.getInt(KEY_FEE_HALF_HOUR, 1),
+            feeHour = prefs.getInt(KEY_FEE_HOUR, 1)
         )
     }
 }

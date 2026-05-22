@@ -29,7 +29,7 @@ class MainScreenViewModel : ViewModel() {
     fun refreshData(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = MainScreenUiState.Loading
-            val data = PriceRepository.fetchPriceData()
+            val data = PriceRepository.fetchPriceData(context)
             if (data != null) {
                 PriceRepository.saveToPrefs(context, data)
                 _uiState.value = MainScreenUiState.Success(data)
