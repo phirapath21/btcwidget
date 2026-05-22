@@ -47,13 +47,7 @@ fun MainScreen(
     val prefs = remember { context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE) }
     var currentTheme by remember { mutableStateOf(prefs.getInt("blockclock_theme", 0)) }
     var showSettings by remember { mutableStateOf(false) }
-    var autoSwitchEnabled by remember { mutableStateOf(prefs.getBoolean("auto_switch", false)) }
     var heroMetric by remember { mutableStateOf(prefs.getString("hero_metric", "BLOCK") ?: "BLOCK") }
-
-    val onAutoSwitchChanged: (Boolean) -> Unit = { enabled ->
-        prefs.edit().putBoolean("auto_switch", enabled).apply()
-        autoSwitchEnabled = enabled
-    }
 
     val onHeroMetricSelected: (String) -> Unit = { metric ->
         prefs.edit().putString("hero_metric", metric).apply()
@@ -62,16 +56,6 @@ fun MainScreen(
 
     LaunchedEffect(Unit) {
         viewModel.loadInitialData(context)
-    }
-
-    LaunchedEffect(autoSwitchEnabled, heroMetric) {
-        if (autoSwitchEnabled) {
-            delay(5000L)
-            val chipsList = listOf("BLOCK", "PRICE", "SATS", "FEES")
-            val currentIndex = chipsList.indexOf(heroMetric)
-            val nextIndex = if (currentIndex != -1) (currentIndex + 1) % chipsList.size else 0
-            onHeroMetricSelected(chipsList[nextIndex])
-        }
     }
 
     val onThemeSelected: (Int) -> Unit = { newTheme ->
@@ -144,70 +128,137 @@ fun MainScreen(
             .fillMaxSize()
             .background(themeBgColor)
     ) {
-        if (showSettings) {
-            SettingsScreen(
-                onDismissRequest = { showSettings = false },
-                currentTheme = currentTheme,
-                onThemeSelected = onThemeSelected,
-                context = context,
-                prefs = prefs,
-                onSettingsChanged = {
-                    viewModel.refreshData(context)
-                    val widgetIntent = Intent(context, BtcWidgetProvider::class.java).apply {
-                        action = BtcWidgetProvider.ACTION_REFRESH
-                    }
-                    context.sendBroadcast(widgetIntent)
-                    val dualWidgetIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
-                        action = BtcDualWidgetProvider.ACTION_REFRESH
-                    }
-                    context.sendBroadcast(dualWidgetIntent)
-                },
-                autoSwitchEnabled = autoSwitchEnabled,
-                onAutoSwitchChanged = onAutoSwitchChanged,
-                cardBgColor = themeCardBgColor,
-                borderColor = themeBorderColor,
-                valueColor = themeValueColor,
-                labelColor = themeLabelColor,
-                subTextColor = themeSubTextColor
-            )
-        } else {
-            Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
             ) {
-                HeaderSection(
-                    titleColor = themeBorderColor,
-                    subtitleColor = themeLabelColor,
-                    onSettingsClick = { showSettings = true }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                when (val currentState = state) {
-                    is MainScreenUiState.Loading -> {
-                        LoadingScreen()
-                    }
-                    is MainScreenUiState.Success -> {
-                        DashboardContent(
-                            data = currentState.data,
-                            heroMetric = heroMetric,
-                            onHeroMetricSelected = onHeroMetricSelected,
-                            cardBgColor = themeCardBgColor,
-                            borderColor = themeBorderColor,
-                            valueColor = themeValueColor,
-                            labelColor = themeLabelColor,
-                            subTextColor = themeSubTextColor
+                if (showSettings) {
+                    SettingsScreen(
+                        currentTheme = currentTheme,
+                        onThemeSelected = onThemeSelected,
+                        context = context,
+                        prefs = prefs,
+                        onSettingsChanged = {
+                            viewModel.refreshData(context)
+                            val widgetIntent = Intent(context, BtcWidgetProvider::class.java).apply {
+                                action = BtcWidgetProvider.ACTION_REFRESH
+                            }
+                            context.sendBroadcast(widgetIntent)
+                            val dualWidgetIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
+                                action = BtcDualWidgetProvider.ACTION_REFRESH
+                            }
+                            context.sendBroadcast(dualWidgetIntent)
+                        },
+                        cardBgColor = themeCardBgColor,
+                        borderColor = themeBorderColor,
+                        valueColor = themeValueColor,
+                        labelColor = themeLabelColor,
+                        subTextColor = themeSubTextColor
+                    )
+                } else {
+                    Column(
+                        modifier = modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        HeaderSection(
+                            titleColor = themeBorderColor,
+                            subtitleColor = themeLabelColor
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        when (val currentState = state) {
+                            is MainScreenUiState.Loading -> {
+                                LoadingScreen()
+                            }
+                            is MainScreenUiState.Success -> {
+                                DashboardContent(
+                                    data = currentState.data,
+                                    heroMetric = heroMetric,
+                                    onHeroMetricSelected = onHeroMetricSelected,
+                                    cardBgColor = themeCardBgColor,
+                                    borderColor = themeBorderColor,
+                                    valueColor = themeValueColor,
+                                    labelColor = themeLabelColor,
+                                    subTextColor = themeSubTextColor
+                                )
+                            }
+                            is MainScreenUiState.Error -> {
+                                ErrorScreen(
+                                    error = currentState.throwable,
+                                    onRefresh = { viewModel.refreshData(context) }
+                                )
+                            }
+                        }
                     }
-                    is MainScreenUiState.Error -> {
-                        ErrorScreen(
-                            error = currentState.throwable,
-                            onRefresh = { viewModel.refreshData(context) }
+                }
+            }
+
+            // Bottom Navigation Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(themeBgColor)
+                    .border(BorderStroke(1.dp, themeBorderColor.copy(alpha = 0.3f)))
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Home / Dashboard button
+                val isHome = !showSettings
+                Box(
+                    modifier = Modifier
+                        .border(
+                            width = 1.dp,
+                            color = if (isHome) themeBorderColor else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
                         )
-                    }
+                        .background(
+                            color = if (isHome) themeBorderColor.copy(alpha = 0.15f) else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .clickable { showSettings = false }
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (isHome) "◆ HOME ◆" else "  HOME  ",
+                        color = if (isHome) themeBorderColor else themeLabelColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                // Settings button
+                val isSettings = showSettings
+                Box(
+                    modifier = Modifier
+                        .border(
+                            width = 1.dp,
+                            color = if (isSettings) themeBorderColor else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .background(
+                            color = if (isSettings) themeBorderColor.copy(alpha = 0.15f) else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .clickable { showSettings = true }
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (isSettings) "◆ SETTINGS ◆" else "  SETTINGS  ",
+                        color = if (isSettings) themeBorderColor else themeLabelColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
             }
         }
@@ -281,47 +332,29 @@ fun ThemeSelectorSection(
 @Composable
 fun HeaderSection(
     titleColor: Color,
-    subtitleColor: Color,
-    onSettingsClick: () -> Unit
+    subtitleColor: Color
 ) {
-    Box(
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
     ) {
-        IconButton(
-            onClick = onSettingsClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(40.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_menu),
-                contentDescription = "Settings Menu",
-                tint = titleColor,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "SATOSHI DASHBOARD",
-                color = titleColor,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
-                letterSpacing = 1.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Blockclock Micro Console",
-                color = subtitleColor,
-                fontSize = 13.sp,
-                fontFamily = FontFamily.Serif
-            )
-        }
+        Text(
+            text = "SATOSHI DASHBOARD",
+            color = titleColor,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Serif,
+            letterSpacing = 1.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Blockclock Micro Console",
+            color = subtitleColor,
+            fontSize = 13.sp,
+            fontFamily = FontFamily.Serif
+        )
     }
 }
 
@@ -822,14 +855,11 @@ fun BlockclockCard(
 
 @Composable
 fun SettingsScreen(
-    onDismissRequest: () -> Unit,
     currentTheme: Int,
     onThemeSelected: (Int) -> Unit,
     context: Context,
     prefs: SharedPreferences,
     onSettingsChanged: () -> Unit,
-    autoSwitchEnabled: Boolean,
-    onAutoSwitchChanged: (Boolean) -> Unit,
     cardBgColor: Color,
     borderColor: Color,
     valueColor: Color,
@@ -844,93 +874,27 @@ fun SettingsScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Settings Header
-        Box(
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 12.dp)
         ) {
-            IconButton(
-                onClick = onDismissRequest,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(40.dp)
-            ) {
-                Text(
-                    text = "←",
-                    color = borderColor,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif
-                )
-            }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "CONSOLE SETTINGS",
-                    color = borderColor,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif,
-                    letterSpacing = 1.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Personalization & System Settings",
-                    color = labelColor,
-                    fontSize = 13.sp,
-                    fontFamily = FontFamily.Serif
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Auto Switch Mode Option
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = cardBgColor),
-            border = BorderStroke(1.5.dp, borderColor)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onAutoSwitchChanged(!autoSwitchEnabled) }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Auto Switch Modes",
-                        color = valueColor,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Automatically cycle featured metric every 5 seconds",
-                        color = subTextColor,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Serif
-                    )
-                }
-                Switch(
-                    checked = autoSwitchEnabled,
-                    onCheckedChange = onAutoSwitchChanged,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = cardBgColor,
-                        checkedTrackColor = borderColor,
-                        uncheckedThumbColor = labelColor,
-                        uncheckedTrackColor = cardBgColor
-                    )
-                )
-            }
+            Text(
+                text = "CONSOLE SETTINGS",
+                color = borderColor,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif,
+                letterSpacing = 1.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Personalization & System Settings",
+                color = labelColor,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Serif
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -953,28 +917,6 @@ fun SettingsScreen(
             labelColor = labelColor,
             subTextColor = subTextColor
         )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = onDismissRequest,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = borderColor,
-                contentColor = cardBgColor
-            ),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-        ) {
-            Text(
-                text = "Apply & Return",
-                color = cardBgColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                fontFamily = FontFamily.Serif
-            )
-        }
     }
 }
 
