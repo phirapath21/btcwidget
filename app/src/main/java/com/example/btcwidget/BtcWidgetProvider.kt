@@ -17,6 +17,7 @@ import android.widget.RemoteViews
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 class BtcWidgetProvider : AppWidgetProvider() {
@@ -52,6 +53,20 @@ class BtcWidgetProvider : AppWidgetProvider() {
             }
         } else if (action == ACTION_REFRESH) {
             triggerVibration(context)
+            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                CoroutineScope(Dispatchers.Main).launch {
+                    for (angle in 0..360 step 30) {
+                        val views = RemoteViews(context.packageName, R.layout.btc_widget_blockclock)
+                        views.setFloat(R.id.btn_refresh, "setRotation", angle.toFloat())
+                        appWidgetManager.partiallyUpdateAppWidget(appWidgetId, views)
+                        delay(40)
+                    }
+                    val views = RemoteViews(context.packageName, R.layout.btc_widget_blockclock)
+                    views.setFloat(R.id.btn_refresh, "setRotation", 0f)
+                    appWidgetManager.partiallyUpdateAppWidget(appWidgetId, views)
+                }
+            }
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {

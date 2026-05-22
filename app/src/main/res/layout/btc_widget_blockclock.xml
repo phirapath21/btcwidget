@@ -35,7 +35,7 @@
                 android:textColor="#E4E4E7"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="serif"
+                android:fontFamily="monospace"
                 android:includeFontPadding="false" />
 
             <!-- Separator line -->
@@ -54,7 +54,7 @@
                 android:textColor="#E4E4E7"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="serif"
+                android:fontFamily="monospace"
                 android:includeFontPadding="false" />
         </LinearLayout>
 
@@ -66,7 +66,7 @@
             android:textColor="#E4E4E7"
             android:textSize="36sp"
             android:textStyle="bold"
-            android:fontFamily="serif"
+            android:fontFamily="monospace"
             android:letterSpacing="-0.02"
             android:ellipsize="end"
             android:maxLines="1" />
@@ -88,7 +88,7 @@
                 android:textColor="#E4E4E7"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="serif"
+                android:fontFamily="monospace"
                 android:includeFontPadding="false" />
         </LinearLayout>
     </LinearLayout>
@@ -127,7 +127,7 @@
                 android:text="Market price of bitcoin"
                 android:textColor="#8E8E93"
                 android:textSize="9.5sp"
-                android:fontFamily="serif"
+                android:fontFamily="monospace"
                 android:singleLine="true"
                 android:ellipsize="end" />
         </LinearLayout>

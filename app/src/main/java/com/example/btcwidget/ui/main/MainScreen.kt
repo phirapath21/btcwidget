@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import com.example.btcwidget.BtcWidgetProvider
 import com.example.btcwidget.BtcDualWidgetProvider
+import com.example.btcwidget.R
+import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -794,12 +796,13 @@ fun RefreshButton(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "↻",
-                color = contentColor,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = if (isLoading) Modifier.rotate(rotation) else Modifier
+            Icon(
+                painter = painterResource(id = R.drawable.ic_refresh),
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier
+                    .size(20.dp)
+                    .rotate(if (isLoading) rotation else 0f)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
