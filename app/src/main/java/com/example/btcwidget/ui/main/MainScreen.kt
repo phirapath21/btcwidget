@@ -3,11 +3,9 @@ package com.example.btcwidget.ui.main
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import kotlinx.coroutines.delay
 import com.example.btcwidget.BtcWidgetProvider
 import com.example.btcwidget.BtcDualWidgetProvider
 import com.example.btcwidget.R
-import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,7 +20,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -32,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.btcwidget.theme.BTCWidgetTheme
 import com.example.btcwidget.PriceData
 import java.text.SimpleDateFormat
 import java.util.*
@@ -48,6 +47,15 @@ fun MainScreen(
     var currentTheme by remember { mutableStateOf(prefs.getInt("blockclock_theme", 0)) }
     var showSettings by remember { mutableStateOf(false) }
     var heroMetric by remember { mutableStateOf(prefs.getString("hero_metric", "BLOCK") ?: "BLOCK") }
+    var currencySetting by remember { mutableStateOf(prefs.getString("currency", "USD") ?: "USD") }
+    var hapticEnabled by remember { mutableStateOf(prefs.getBoolean("haptic_enabled", true)) }
+
+    // Mode states for Settings
+    val modeStates = remember {
+        mutableStateListOf<Boolean>().apply {
+            addAll((0..12).map { prefs.getBoolean("mode_enabled_$it", true) })
+        }
+    }
 
     val onHeroMetricSelected: (String) -> Unit = { metric ->
         prefs.edit().putString("hero_metric", metric).apply()
@@ -72,197 +80,59 @@ fun MainScreen(
         context.sendBroadcast(dualIntent)
     }
 
-    // Map theme colors
-    val themeBgColor: Color
-    val themeCardBgColor: Color
-    val themeValueColor: Color
-    val themeLabelColor: Color
-    val themeSubTextColor: Color
-    val themeBorderColor: Color
+    val onCurrencySelected: (String) -> Unit = { newCurrency ->
+        prefs.edit().putString("currency", newCurrency).apply()
+        currencySetting = newCurrency
+        val intent = Intent(context, BtcWidgetProvider::class.java).apply {
+            action = BtcWidgetProvider.ACTION_REFRESH
+        }
+        context.sendBroadcast(intent)
+        val dualIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
+            action = BtcDualWidgetProvider.ACTION_REFRESH
+        }
+        context.sendBroadcast(dualIntent)
+    }
 
-    when (currentTheme) {
-        1 -> { // E-Ink Light
-            themeBgColor = Color(0xFFE4E4E7)
-            themeCardBgColor = Color(0xFFF4F4F5)
-            themeValueColor = Color(0xFF18181B)
-            themeLabelColor = Color(0xFF71717A)
-            themeSubTextColor = Color(0xFF71717A)
-            themeBorderColor = Color(0xFF18181B)
-        }
-        2 -> { // Bitcoin Orange
-            themeBgColor = Color(0xFF78350F)
-            themeCardBgColor = Color(0xFFF7931A)
-            themeValueColor = Color(0xFF121214)
-            themeLabelColor = Color(0xFF8A6D3B)
-            themeSubTextColor = Color(0xFF78350F)
-            themeBorderColor = Color(0xFF121214)
-        }
-        3 -> { // Matrix Green
-            themeBgColor = Color(0xFF022C22)
-            themeCardBgColor = Color(0xFF0A0A0C)
-            themeValueColor = Color(0xFF10B981)
-            themeLabelColor = Color(0xFF047857)
-            themeSubTextColor = Color(0xFF047857)
-            themeBorderColor = Color(0xFF10B981)
-        }
-        4 -> { // Coinkite Gold
-            themeBgColor = Color(0xFF0C0C0E)
-            themeCardBgColor = Color(0xFF121214)
-            themeValueColor = Color(0xFFC5A059)
-            themeLabelColor = Color(0xFF8A6D3B)
-            themeSubTextColor = Color(0xFF8A6D3B)
-            themeBorderColor = Color(0xFFC5A059)
-        }
-        else -> { // E-Ink Dark (Default)
-            themeBgColor = Color(0xFF0C0C0E)
-            themeCardBgColor = Color(0xFF121214)
-            themeValueColor = Color(0xFFE4E4E7)
-            themeLabelColor = Color(0xFF8E8E93)
-            themeSubTextColor = Color(0xFF8E8E93)
-            themeBorderColor = Color(0xFFC5A059)
+    val onHapticToggle: (Boolean) -> Unit = { enabled ->
+        prefs.edit().putBoolean("haptic_enabled", enabled).apply()
+        hapticEnabled = enabled
+    }
+
+    val onModeToggle: (Int, Boolean) -> Unit = { index, checked ->
+        val enabledCount = modeStates.count { it }
+        if (checked || enabledCount > 1) {
+            prefs.edit().putBoolean("mode_enabled_$index", checked).apply()
+            modeStates[index] = checked
+            viewModel.refreshData(context)
+            val widgetIntent = Intent(context, BtcWidgetProvider::class.java).apply {
+                action = BtcWidgetProvider.ACTION_REFRESH
+            }
+            context.sendBroadcast(widgetIntent)
+            val dualWidgetIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
+                action = BtcDualWidgetProvider.ACTION_REFRESH
+            }
+            context.sendBroadcast(dualWidgetIntent)
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(themeBgColor)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                if (showSettings) {
-                    SettingsScreen(
-                        currentTheme = currentTheme,
-                        onThemeSelected = onThemeSelected,
-                        context = context,
-                        prefs = prefs,
-                        onSettingsChanged = {
-                            viewModel.refreshData(context)
-                            val widgetIntent = Intent(context, BtcWidgetProvider::class.java).apply {
-                                action = BtcWidgetProvider.ACTION_REFRESH
-                            }
-                            context.sendBroadcast(widgetIntent)
-                            val dualWidgetIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
-                                action = BtcDualWidgetProvider.ACTION_REFRESH
-                            }
-                            context.sendBroadcast(dualWidgetIntent)
-                        },
-                        cardBgColor = themeCardBgColor,
-                        borderColor = themeBorderColor,
-                        valueColor = themeValueColor,
-                        labelColor = themeLabelColor,
-                        subTextColor = themeSubTextColor
-                    )
-                } else {
-                    Column(
-                        modifier = modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        HeaderSection(
-                            titleColor = themeBorderColor,
-                            subtitleColor = themeLabelColor
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        when (val currentState = state) {
-                            is MainScreenUiState.Loading -> {
-                                LoadingScreen()
-                            }
-                            is MainScreenUiState.Success -> {
-                                DashboardContent(
-                                    data = currentState.data,
-                                    heroMetric = heroMetric,
-                                    onHeroMetricSelected = onHeroMetricSelected,
-                                    cardBgColor = themeCardBgColor,
-                                    borderColor = themeBorderColor,
-                                    valueColor = themeValueColor,
-                                    labelColor = themeLabelColor,
-                                    subTextColor = themeSubTextColor
-                                )
-                            }
-                            is MainScreenUiState.Error -> {
-                                ErrorScreen(
-                                    error = currentState.throwable,
-                                    onRefresh = { viewModel.refreshData(context) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Bottom Navigation Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(themeBgColor)
-                    .border(BorderStroke(1.dp, themeBorderColor.copy(alpha = 0.3f)))
-                    .padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Home / Dashboard button
-                val isHome = !showSettings
-                Box(
-                    modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = if (isHome) themeBorderColor else Color.Transparent,
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .background(
-                            color = if (isHome) themeBorderColor.copy(alpha = 0.15f) else Color.Transparent,
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .clickable { showSettings = false }
-                        .padding(horizontal = 24.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = if (isHome) "◆ HOME ◆" else "  HOME  ",
-                        color = if (isHome) themeBorderColor else themeLabelColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
-                // Settings button
-                val isSettings = showSettings
-                Box(
-                    modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = if (isSettings) themeBorderColor else Color.Transparent,
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .background(
-                            color = if (isSettings) themeBorderColor.copy(alpha = 0.15f) else Color.Transparent,
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .clickable { showSettings = true }
-                        .padding(horizontal = 24.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = if (isSettings) "◆ SETTINGS ◆" else "  SETTINGS  ",
-                        color = if (isSettings) themeBorderColor else themeLabelColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-        }
-    }
+    MainScreenContent(
+        state = state,
+        currentTheme = currentTheme,
+        showSettings = showSettings,
+        heroMetric = heroMetric,
+        modeStates = modeStates,
+        currencySetting = currencySetting,
+        onCurrencySelected = onCurrencySelected,
+        hapticEnabled = hapticEnabled,
+        onHapticToggle = onHapticToggle,
+        onHeroMetricSelected = onHeroMetricSelected,
+        onThemeSelected = onThemeSelected,
+        onShowSettingsChange = { newValue: Boolean -> showSettings = newValue },
+        onModeToggle = onModeToggle,
+        onRefresh = { viewModel.refreshData(context) },
+        onItemClick = onItemClick,
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -295,7 +165,12 @@ fun ThemeSelectorSection(
                 Triple(1, "Light", Color(0xFFF4F4F5)),
                 Triple(2, "Orange", Color(0xFFF7931A)),
                 Triple(3, "Matrix", Color(0xFF10B981)),
-                Triple(4, "Gold", Color(0xFFC5A059))
+                Triple(4, "Gold", Color(0xFFC5A059)),
+                Triple(5, "Amber", Color(0xFFFFB000)),
+                Triple(6, "Cyber", Color(0xFFFF007F)),
+                Triple(7, "Midnt", Color(0xFF38BDF8)),
+                Triple(8, "Cypher", Color(0xFFFF0000)),
+                Triple(9, "Pill", Color(0xFFF7931A))
             )
 
             themesList.forEach { (index, name, color) ->
@@ -377,23 +252,41 @@ fun DashboardContent(
     borderColor: Color,
     valueColor: Color,
     labelColor: Color,
-    subTextColor: Color
+    subTextColor: Color,
+    enabledModes: List<Boolean>,
+    currencySetting: String
 ) {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE) }
-    val enabledModes = (0..9).map { prefs.getBoolean("mode_enabled_$it", true) }
+    val isThb = currencySetting == "THB"
+    val formattedBtcPrice = if (isThb) {
+        String.format(Locale.US, "%.2f mil", data.btcThb / 1_000_000.0)
+    } else {
+        String.format(Locale.US, "$%,.0f", data.btcUsd)
+    }
+    val priceLabelBottom = if (isThb) "THB" else "USD"
+    val priceSubtext = if (isThb) "Market price of bitcoin (THB)" else "Market price of bitcoin"
+
+    val moscowTimeVal = if (isThb) {
+        if (data.btcThb > 0) (100_000_000.0 / data.btcThb).toInt() else 0
+    } else {
+        data.moscowTime
+    }
+    val satsLabelBottom = if (isThb) "1 THB" else "1\$USD"
+    val satsSubtext = if (isThb) "฿1 per Satoshis (Moscow Time)" else "$1 per Satoshis (Moscow Time)"
 
     val allMetrics = listOf(
-        MetricItem(key = "PRICE", labelTop = "BTC", labelBottom = "USD", value = String.format(Locale.US, "$%,.0f", data.btcUsd), subtext = "Market price of bitcoin", isMstr = false),
-        MetricItem(key = "SATS", labelTop = "SATS", labelBottom = "1\$USD", value = String.format(Locale.US, "%,d", data.moscowTime), subtext = "$1 per Satoshis (Moscow Time)", isMstr = false),
+        MetricItem(key = "PRICE", labelTop = "BTC", labelBottom = priceLabelBottom, value = formattedBtcPrice, subtext = priceSubtext, isMstr = false),
+        MetricItem(key = "SATS", labelTop = "SATS", labelBottom = satsLabelBottom, value = String.format(Locale.US, "%,d", moscowTimeVal), subtext = satsSubtext, isMstr = false),
         MetricItem(key = "BLOCK", labelTop = "BLOCK", labelBottom = "HGHT", value = String.format(Locale.US, "%,d", data.blockHeight), subtext = "Current bitcoin block height", isMstr = false),
-        MetricItem(key = "MSCW", labelTop = "MSCW", labelBottom = "TIME", value = String.format(Locale.US, "%d", data.moscowTime), subtext = "Moscow Time clock face", isMstr = false),
+        MetricItem(key = "MSCW", labelTop = "MSCW", labelBottom = "TIME", value = String.format(Locale.US, "%d", moscowTimeVal), subtext = "Moscow Time clock face", isMstr = false),
         MetricItem(key = "MSTR_HELD", labelTop = "MSTR", labelBottom = "BTC", value = String.format(Locale.US, "%,.0f", data.mstrBtcHeld), subtext = "Strategy Inc. - BTC held", isMstr = true),
         MetricItem(key = "MSTR_RATIO", labelTop = "MSTR", labelBottom = "BTC", value = String.format(Locale.US, "%.5f", data.mstrBtc), subtext = "Strategy Inc. - BTC per share", isMstr = true),
         MetricItem(key = "MSTR_PRICE", labelTop = "MSTR", labelBottom = "USD", value = String.format(Locale.US, "$%,.0f", data.mstrUsd), subtext = "Strategy Inc. - Share price", isMstr = true),
         MetricItem(key = "CIRCULATION", labelTop = "BTC", labelBottom = "CIRC", value = String.format(Locale.US, "%.3f", data.btcCirculation / 1_000_000.0), suffix = "MIL", subtext = "Bitcoin in circulation", isMstr = false),
         MetricItem(key = "HALVING", labelTop = "HALV", labelBottom = "BLKS", value = String.format(Locale.US, "%,d", 210000 - (data.blockHeight % 210000)), subtext = "Blocks to next halving", isMstr = false),
-        MetricItem(key = "FEES", labelTop = "FEES", labelBottom = "sat/vB", value = String.format(Locale.US, "%d", data.feeFastest), subtext = String.format(Locale.US, "Mid: %d / Low: %d", data.feeHalfHour, data.feeHour), isMstr = false)
+        MetricItem(key = "FEES", labelTop = "FEES", labelBottom = "sat/vB", value = String.format(Locale.US, "%d", data.feeFastest), subtext = String.format(Locale.US, "Mid: %d / Low: %d", data.feeHalfHour, data.feeHour), isMstr = false),
+        MetricItem(key = "HASHRATE", labelTop = "HASH", labelBottom = "RATE", value = String.format(Locale.US, "%.1f", data.hashRate), suffix = "EH/s", subtext = "Network Hash Rate (3d)", isMstr = false),
+        MetricItem(key = "DIFF_ADJ", labelTop = "DIFF", labelBottom = "ADJ", value = String.format(Locale.US, "%+.1f%%", data.difficultyChange), subtext = String.format(Locale.US, "Progress: %.1f%%", data.difficultyProgress), isMstr = false),
+        MetricItem(key = "LN_CAP", labelTop = "LN", labelBottom = "CAP", value = String.format(Locale.US, "%,.0f", data.lightningCapacity), suffix = "BTC", subtext = "Lightning Network Capacity", isMstr = false)
     )
 
     Column(
@@ -431,8 +324,21 @@ fun DashboardContent(
 
         // Hero Metric Card
         val heroData = when (heroMetric) {
-            "PRICE" -> Triple("BTC", "USD", String.format(Locale.US, "$%,.0f", data.btcUsd)) to "Market price of bitcoin"
-            "SATS" -> Triple("SATS", "1\$USD", String.format(Locale.US, "%,d", data.moscowTime)) to "$1 per Satoshis"
+            "PRICE" -> {
+                if (isThb) {
+                    Triple("BTC", "THB", String.format(Locale.US, "%.2f mil", data.btcThb / 1_000_000.0)) to "Market price of bitcoin"
+                } else {
+                    Triple("BTC", "USD", String.format(Locale.US, "$%,.0f", data.btcUsd)) to "Market price of bitcoin"
+                }
+            }
+            "SATS" -> {
+                if (isThb) {
+                    val satsPerThb = if (data.btcThb > 0) (100_000_000.0 / data.btcThb).toInt() else 0
+                    Triple("SATS", "1 THB", String.format(Locale.US, "%,d", satsPerThb)) to "฿1 per Satoshis"
+                } else {
+                    Triple("SATS", "1\$USD", String.format(Locale.US, "%,d", data.moscowTime)) to "$1 per Satoshis"
+                }
+            }
             "FEES" -> Triple("FEES", "sat/vB", String.format(Locale.US, "%d", data.feeFastest)) to String.format(Locale.US, "Mid: %d / Low: %d sat/vB", data.feeHalfHour, data.feeHour)
             else -> Triple("BLOCK", "HGHT", String.format(Locale.US, "%,d", data.blockHeight)) to "Bitcoin block height"
         }
@@ -539,26 +445,133 @@ fun DashboardContent(
             fontFamily = FontFamily.Serif,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-    }}
+    }
+}
 
 @Composable
-fun SettingsPanelCard(
-    context: Context,
-    prefs: SharedPreferences,
-    onSettingsChanged: () -> Unit,
+fun PreferencesPanelCard(
+    currencySetting: String,
+    onCurrencySelected: (String) -> Unit,
+    hapticEnabled: Boolean,
+    onHapticToggle: (Boolean) -> Unit,
     cardBgColor: Color,
     borderColor: Color,
     valueColor: Color,
     labelColor: Color,
     subTextColor: Color
 ) {
-    // We want to force state updates for checkboxes
-    val modeStates = remember {
-        mutableStateListOf<Boolean>().apply {
-            addAll((0..9).map { prefs.getBoolean("mode_enabled_$it", true) })
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBgColor),
+        border = BorderStroke(1.5.dp, borderColor)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "PREFERENCES",
+                color = valueColor,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif,
+                letterSpacing = 1.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Currency row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Currency",
+                    color = valueColor,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Serif
+                )
+                
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("USD", "THB").forEach { curr ->
+                        val isSelected = currencySetting == curr
+                        Box(
+                            modifier = Modifier
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) borderColor else labelColor.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .background(
+                                    color = if (isSelected) borderColor.copy(alpha = 0.15f) else Color.Transparent,
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .clickable { onCurrencySelected(curr) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = curr,
+                                color = if (isSelected) borderColor else labelColor,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Vibration & Haptic feedback row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onHapticToggle(!hapticEnabled) }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = hapticEnabled,
+                    onCheckedChange = { checked ->
+                        onHapticToggle(checked)
+                    },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = borderColor,
+                        uncheckedColor = labelColor,
+                        checkmarkColor = cardBgColor
+                    ),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Vibration & Haptics",
+                    color = valueColor,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Serif
+                )
+            }
         }
     }
+}
 
+@Composable
+fun SettingsPanelCard(
+    onModeToggle: (Int, Boolean) -> Unit,
+    modeStates: List<Boolean>,
+    cardBgColor: Color,
+    borderColor: Color,
+    valueColor: Color,
+    labelColor: Color,
+    subTextColor: Color
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -601,7 +614,10 @@ fun SettingsPanelCard(
                 "MSTR Share Price",
                 "BTC Circulating Supply",
                 "Halving Countdown",
-                "Mempool Priority Fees"
+                "Mempool Priority Fees",
+                "Network Hash Rate",
+                "Difficulty Adjustment",
+                "Lightning Network Capacity"
             )
 
             Column(
@@ -613,27 +629,17 @@ fun SettingsPanelCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                // Must have at least one mode enabled
-                                val enabledCount = modeStates.count { it }
-                                if (!modeStates[index] || enabledCount > 1) {
-                                    val newVal = !modeStates[index]
-                                    prefs.edit().putBoolean("mode_enabled_$index", newVal).apply()
-                                    modeStates[index] = newVal
-                                    onSettingsChanged()
+                                if (index < modeStates.size) {
+                                    onModeToggle(index, !modeStates[index])
                                 }
                             }
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = modeStates[index],
+                            checked = if (index < modeStates.size) modeStates[index] else true,
                             onCheckedChange = { checked ->
-                                val enabledCount = modeStates.count { it }
-                                if (checked || enabledCount > 1) {
-                                    prefs.edit().putBoolean("mode_enabled_$index", checked).apply()
-                                    modeStates[index] = checked
-                                    onSettingsChanged()
-                                }
+                                onModeToggle(index, checked)
                             },
                             colors = CheckboxDefaults.colors(
                                 checkedColor = borderColor,
@@ -697,7 +703,7 @@ fun HeroBlockclockCard(
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 1.sp
                 )
-                
+
                 Text(
                     text = "◆ HERO STATUS ◆",
                     color = borderColor,
@@ -766,8 +772,8 @@ fun BlockclockCard(
             .fillMaxWidth()
             .height(115.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBgColor), // Matte E-Ink display surface
-        border = BorderStroke(1.5.dp, borderColor) // Gold physical device bevel
+        colors = CardDefaults.cardColors(containerColor = cardBgColor),
+        border = BorderStroke(1.5.dp, borderColor)
     ) {
         Column(
             modifier = Modifier
@@ -776,7 +782,6 @@ fun BlockclockCard(
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Main digital content area
             Row(
                 modifier = Modifier
                     .weight(1f)
@@ -815,7 +820,6 @@ fun BlockclockCard(
                         }
                     }
                 }
-                // Monospace value stretched/compressed in design
                 Text(
                     text = value,
                     color = valueColor,
@@ -838,7 +842,6 @@ fun BlockclockCard(
                 }
             }
 
-            // Lowercase gray footer description
             if (showSubText) {
                 Text(
                     text = subtext,
@@ -857,9 +860,12 @@ fun BlockclockCard(
 fun SettingsScreen(
     currentTheme: Int,
     onThemeSelected: (Int) -> Unit,
-    context: Context,
-    prefs: SharedPreferences,
-    onSettingsChanged: () -> Unit,
+    onModeToggle: (Int, Boolean) -> Unit,
+    modeStates: List<Boolean>,
+    currencySetting: String,
+    onCurrencySelected: (String) -> Unit,
+    hapticEnabled: Boolean,
+    onHapticToggle: (Boolean) -> Unit,
     cardBgColor: Color,
     borderColor: Color,
     valueColor: Color,
@@ -873,7 +879,6 @@ fun SettingsScreen(
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Settings Header
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
@@ -907,10 +912,23 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        PreferencesPanelCard(
+            currencySetting = currencySetting,
+            onCurrencySelected = onCurrencySelected,
+            hapticEnabled = hapticEnabled,
+            onHapticToggle = onHapticToggle,
+            cardBgColor = cardBgColor,
+            borderColor = borderColor,
+            valueColor = valueColor,
+            labelColor = labelColor,
+            subTextColor = subTextColor
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         SettingsPanelCard(
-            context = context,
-            prefs = prefs,
-            onSettingsChanged = onSettingsChanged,
+            onModeToggle = onModeToggle,
+            modeStates = modeStates,
             cardBgColor = cardBgColor,
             borderColor = borderColor,
             valueColor = valueColor,
@@ -983,5 +1001,326 @@ fun ErrorScreen(error: Throwable, onRefresh: () -> Unit) {
                 fontFamily = FontFamily.Serif
             )
         }
+    }
+}
+
+@Composable
+fun MainScreenContent(
+    state: MainScreenUiState,
+    currentTheme: Int,
+    showSettings: Boolean,
+    heroMetric: String,
+    modeStates: List<Boolean>,
+    currencySetting: String,
+    onCurrencySelected: (String) -> Unit,
+    hapticEnabled: Boolean,
+    onHapticToggle: (Boolean) -> Unit,
+    onHeroMetricSelected: (String) -> Unit,
+    onThemeSelected: (Int) -> Unit,
+    onShowSettingsChange: (Boolean) -> Unit,
+    onModeToggle: (Int, Boolean) -> Unit,
+    onRefresh: () -> Unit,
+    onItemClick: (NavKey) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val themeBgColor: Color
+    val themeCardBgColor: Color
+    val themeValueColor: Color
+    val themeLabelColor: Color
+    val themeSubTextColor: Color
+    val themeBorderColor: Color
+
+    when (currentTheme) {
+        1 -> { // E-Ink Light
+            themeBgColor = Color(0xFFE4E4E7)
+            themeCardBgColor = Color(0xFFF4F4F5)
+            themeValueColor = Color(0xFF18181B)
+            themeLabelColor = Color(0xFF71717A)
+            themeSubTextColor = Color(0xFF71717A)
+            themeBorderColor = Color(0xFF18181B)
+        }
+        2 -> { // Bitcoin Orange
+            themeBgColor = Color(0xFF78350F)
+            themeCardBgColor = Color(0xFFF7931A)
+            themeValueColor = Color(0xFF121214)
+            themeLabelColor = Color(0xFF8A6D3B)
+            themeSubTextColor = Color(0xFF78350F)
+            themeBorderColor = Color(0xFF121214)
+        }
+        3 -> { // Matrix Green
+            themeBgColor = Color(0xFF022C22)
+            themeCardBgColor = Color(0xFF0A0A0C)
+            themeValueColor = Color(0xFF10B981)
+            themeLabelColor = Color(0xFF047857)
+            themeSubTextColor = Color(0xFF047857)
+            themeBorderColor = Color(0xFF10B981)
+        }
+        4 -> { // Coinkite Gold
+            themeBgColor = Color(0xFF0C0C0E)
+            themeCardBgColor = Color(0xFF121214)
+            themeValueColor = Color(0xFFC5A059)
+            themeLabelColor = Color(0xFF8A6D3B)
+            themeSubTextColor = Color(0xFF8A6D3B)
+            themeBorderColor = Color(0xFFC5A059)
+        }
+        5 -> { // Terminal Amber
+            themeBgColor = Color(0xFF0A0500)
+            themeCardBgColor = Color(0xFF140B00)
+            themeValueColor = Color(0xFFFFB000)
+            themeLabelColor = Color(0xFF805800)
+            themeSubTextColor = Color(0xFF805800)
+            themeBorderColor = Color(0xFFFFB000)
+        }
+        6 -> { // Cyberpunk
+            themeBgColor = Color(0xFF050014)
+            themeCardBgColor = Color(0xFF0E0826)
+            themeValueColor = Color(0xFFFF007F)
+            themeLabelColor = Color(0xFF00F5FF)
+            themeSubTextColor = Color(0xFF00F5FF)
+            themeBorderColor = Color(0xFFFF007F)
+        }
+        7 -> { // Midnight Blue
+            themeBgColor = Color(0xFF020617)
+            themeCardBgColor = Color(0xFF0F172A)
+            themeValueColor = Color(0xFF38BDF8)
+            themeLabelColor = Color(0xFF64748B)
+            themeSubTextColor = Color(0xFF64748B)
+            themeBorderColor = Color(0xFF38BDF8)
+        }
+        8 -> { // Cypherpunk
+            themeBgColor = Color(0xFF000000)
+            themeCardBgColor = Color(0xFF0C0202)
+            themeValueColor = Color(0xFFFF0000)
+            themeLabelColor = Color(0xFF880000)
+            themeSubTextColor = Color(0xFF880000)
+            themeBorderColor = Color(0xFFFF0000)
+        }
+        9 -> { // Orange Pill
+            themeBgColor = Color(0xFF000000)
+            themeCardBgColor = Color(0xFF0E0800)
+            themeValueColor = Color(0xFFF7931A)
+            themeLabelColor = Color(0xFFA66210)
+            themeSubTextColor = Color(0xFFA66210)
+            themeBorderColor = Color(0xFFF7931A)
+        }
+        else -> { // E-Ink Dark (Default)
+            themeBgColor = Color(0xFF0C0C0E)
+            themeCardBgColor = Color(0xFF121214)
+            themeValueColor = Color(0xFFE4E4E7)
+            themeLabelColor = Color(0xFF8E8E93)
+            themeSubTextColor = Color(0xFF8E8E93)
+            themeBorderColor = Color(0xFFC5A059)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(themeBgColor)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                if (showSettings) {
+                    SettingsScreen(
+                        currentTheme = currentTheme,
+                        onThemeSelected = onThemeSelected,
+                        onModeToggle = onModeToggle,
+                        modeStates = modeStates,
+                        currencySetting = currencySetting,
+                        onCurrencySelected = onCurrencySelected,
+                        hapticEnabled = hapticEnabled,
+                        onHapticToggle = onHapticToggle,
+                        cardBgColor = themeCardBgColor,
+                        borderColor = themeBorderColor,
+                        valueColor = themeValueColor,
+                        labelColor = themeLabelColor,
+                        subTextColor = themeSubTextColor
+                    )
+                } else {
+                    Column(
+                        modifier = modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        HeaderSection(
+                            titleColor = themeBorderColor,
+                            subtitleColor = themeLabelColor
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        when (val currentState = state) {
+                            is MainScreenUiState.Loading -> {
+                                LoadingScreen()
+                            }
+                            is MainScreenUiState.Success -> {
+                                DashboardContent(
+                                    data = currentState.data,
+                                    heroMetric = heroMetric,
+                                    onHeroMetricSelected = onHeroMetricSelected,
+                                    cardBgColor = themeCardBgColor,
+                                    borderColor = themeBorderColor,
+                                    valueColor = themeValueColor,
+                                    labelColor = themeLabelColor,
+                                    subTextColor = themeSubTextColor,
+                                    enabledModes = modeStates,
+                                    currencySetting = currencySetting
+                                )
+                            }
+                            is MainScreenUiState.Error -> {
+                                ErrorScreen(
+                                    error = currentState.throwable,
+                                    onRefresh = onRefresh
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(themeBgColor)
+                    .border(BorderStroke(0.dp, themeBorderColor.copy(alpha = 0.3f)))
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val isHome = !showSettings
+                Box(
+                    modifier = Modifier
+                        .border(
+                            width = 1.dp,
+                            color = if (isHome) themeBorderColor else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .background(
+                            color = if (isHome) themeBorderColor.copy(alpha = 0.15f) else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .clickable { onShowSettingsChange(false) }
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (isHome) "◆ HOME ◆" else "  HOME  ",
+                        color = if (isHome) themeBorderColor else themeLabelColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                val isSettings = showSettings
+                Box(
+                    modifier = Modifier
+                        .border(
+                            width = 1.dp,
+                            color = if (isSettings) themeBorderColor else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .background(
+                            color = if (isSettings) themeBorderColor.copy(alpha = 0.15f) else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .clickable { onShowSettingsChange(true) }
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (isSettings) "◆ SETTINGS ◆" else "  SETTINGS  ",
+                        color = if (isSettings) themeBorderColor else themeLabelColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MainScreenPreview() {
+    val sampleData = PriceData(
+        btcUsd = 65000.0,
+        btcThb = 2200000.0,
+        moscowTime = 1538,
+        mstrUsd = 1600.0,
+        mstrBtc = 0.00012,
+        blockHeight = 840000,
+        mstrBtcHeld = 214400.0,
+        btcCirculation = 19680000.0,
+        timestamp = System.currentTimeMillis(),
+        feeFastest = 25,
+        feeHalfHour = 20,
+        feeHour = 10
+    )
+
+    BTCWidgetTheme {
+        MainScreenContent(
+            state = MainScreenUiState.Success(sampleData),
+            currentTheme = 0,
+            showSettings = false,
+            heroMetric = "BLOCK",
+            modeStates = List(13) { true },
+            currencySetting = "USD",
+            onCurrencySelected = {},
+            hapticEnabled = true,
+            onHapticToggle = {},
+            onHeroMetricSelected = {},
+            onThemeSelected = {},
+            onShowSettingsChange = {},
+            onModeToggle = { _, _ -> },
+            onRefresh = {},
+            onItemClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MainScreenSettingsPreview() {
+    val sampleData = PriceData(
+        btcUsd = 65000.0,
+        btcThb = 2200000.0,
+        moscowTime = 1538,
+        mstrUsd = 1600.0,
+        mstrBtc = 0.00012,
+        blockHeight = 840000,
+        mstrBtcHeld = 214400.0,
+        btcCirculation = 19680000.0,
+        timestamp = System.currentTimeMillis(),
+        feeFastest = 25,
+        feeHalfHour = 20,
+        feeHour = 10
+    )
+
+    BTCWidgetTheme {
+        MainScreenContent(
+            state = MainScreenUiState.Success(sampleData),
+            currentTheme = 0,
+            showSettings = true,
+            heroMetric = "BLOCK",
+            modeStates = List(13) { true },
+            currencySetting = "USD",
+            onCurrencySelected = {},
+            hapticEnabled = true,
+            onHapticToggle = {},
+            onHeroMetricSelected = {},
+            onThemeSelected = {},
+            onShowSettingsChange = {},
+            onModeToggle = { _, _ -> },
+            onRefresh = {},
+            onItemClick = {}
+        )
     }
 }

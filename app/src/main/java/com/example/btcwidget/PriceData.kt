@@ -11,6 +11,7 @@ import java.net.URL
 
 data class PriceData(
     val btcUsd: Double,
+    val btcThb: Double,
     val moscowTime: Int,
     val mstrUsd: Double,
     val mstrBtc: Double,
@@ -22,13 +23,18 @@ data class PriceData(
     val lastFetchSuccessful: Boolean = true,
     val feeFastest: Int = 1,
     val feeHalfHour: Int = 1,
-    val feeHour: Int = 1
+    val feeHour: Int = 1,
+    val difficultyChange: Double = 0.0,
+    val difficultyProgress: Double = 0.0,
+    val hashRate: Double = 0.0,
+    val lightningCapacity: Double = 0.0
 )
 
 object PriceRepository {
     private const val TAG = "PriceRepository"
     private const val PREFS_NAME = "btc_widget_prefs"
     private const val KEY_BTC_USD = "btc_usd"
+    private const val KEY_BTC_THB = "btc_thb"
     private const val KEY_MOSCOW_TIME = "moscow_time"
     private const val KEY_MSTR_USD = "mstr_usd"
     private const val KEY_MSTR_BTC = "mstr_btc"
@@ -41,22 +47,25 @@ object PriceRepository {
     private const val KEY_FEE_FASTEST = "fee_fastest"
     private const val KEY_FEE_HALF_HOUR = "fee_half_hour"
     private const val KEY_FEE_HOUR = "fee_hour"
+    private const val KEY_DIFFICULTY_CHANGE = "difficulty_change"
+    private const val KEY_DIFFICULTY_PROGRESS = "difficulty_progress"
+    private const val KEY_HASH_RATE = "hash_rate"
+    private const val KEY_LIGHTNING_CAPACITY = "lightning_capacity"
 
     fun fetchPriceData(context: Context): PriceData? {
         return try {
-            // 1. Fetch BTC/USD
-            val btcUrl = URL("https://api.coinbase.com/v2/prices/BTC-USD/spot")
-            val btcConn = btcUrl.openConnection() as HttpURLConnection
-            btcConn.requestMethod = "GET"
-            btcConn.connectTimeout = 8000
-            btcConn.readTimeout = 8000
-            val btcStream = btcConn.inputStream
-            val btcReader = BufferedReader(InputStreamReader(btcStream))
-            val btcResponse = btcReader.use { it.readText() }
-            btcConn.disconnect()
+            // 1. Fetch BTC Exchange Rates (both USD and THB in a single call)
+            val ratesUrl = URL("https://api.coinbase.com/v2/exchange-rates?currency=BTC")
+            val ratesConn = ratesUrl.openConnection() as HttpURLConnection
+            ratesConn.requestMethod = "GET"
+            ratesConn.connectTimeout = 8000
+            ratesConn.readTimeout = 8000
+            val ratesResponse = ratesConn.inputStream.bufferedReader().use { it.readText() }
+            ratesConn.disconnect()
             
-            val btcObj = JSONObject(btcResponse)
-            val btcPrice = btcObj.getJSONObject("data").getString("amount").toDouble()
+            val ratesObj = JSONObject(ratesResponse).getJSONObject("data").getJSONObject("rates")
+            val btcPrice = ratesObj.getString("USD").toDouble()
+            val btcThbVal = ratesObj.getString("THB").toDouble()
 
             // 2. Fetch MSTR/USD (from Yahoo Finance in USD)
             val mstrUrl = URL("https://query1.finance.yahoo.com/v8/finance/chart/MSTR")
@@ -134,8 +143,66 @@ object PriceRepository {
                 Log.e(TAG, "Error fetching recommended fees", e)
             }
 
+            // 6. Fetch difficulty retarget info
+            var diffChangeVal = 0.0
+            var diffProgressVal = 0.0
+            try {
+                val diffUrl = URL("https://mempool.space/api/v1/difficulty-adjustment")
+                val diffConn = diffUrl.openConnection() as HttpURLConnection
+                diffConn.requestMethod = "GET"
+                diffConn.connectTimeout = 8000
+                diffConn.readTimeout = 8000
+                val diffResponse = diffConn.inputStream.bufferedReader().use { it.readText() }
+                diffConn.disconnect()
+
+                val diffObj = JSONObject(diffResponse)
+                diffChangeVal = diffObj.getDouble("difficultyChange")
+                diffProgressVal = diffObj.getDouble("progressPercent")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching difficulty adjustment", e)
+            }
+
+            // 7. Fetch network hashrate estimate (3d)
+            var hashrateVal = 0.0
+            try {
+                val hashUrl = URL("https://mempool.space/api/v1/mining/hashrate/3d")
+                val hashConn = hashUrl.openConnection() as HttpURLConnection
+                hashConn.requestMethod = "GET"
+                hashConn.connectTimeout = 8000
+                hashConn.readTimeout = 8000
+                val hashResponse = hashConn.inputStream.bufferedReader().use { it.readText() }
+                hashConn.disconnect()
+
+                val hashObj = JSONObject(hashResponse)
+                val rawHashrate = hashObj.getDouble("currentHashrate")
+                // Convert from H/s to EH/s
+                hashrateVal = rawHashrate / 1_000_000_000_000_000_000.0
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching hashrate", e)
+            }
+
+            // 8. Fetch Lightning Network capacity
+            var lnCapacityVal = 0.0
+            try {
+                val lnUrl = URL("https://mempool.space/api/v1/lightning/statistics/latest")
+                val lnConn = lnUrl.openConnection() as HttpURLConnection
+                lnConn.requestMethod = "GET"
+                lnConn.connectTimeout = 8000
+                lnConn.readTimeout = 8000
+                val lnResponse = lnConn.inputStream.bufferedReader().use { it.readText() }
+                lnConn.disconnect()
+
+                val lnObj = JSONObject(lnResponse)
+                val totalCapSats = lnObj.getJSONObject("latest").getDouble("total_capacity")
+                // Convert Satoshis to BTC
+                lnCapacityVal = totalCapSats / 100_000_000.0
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching lightning capacity", e)
+            }
+
             PriceData(
                 btcUsd = btcPrice,
+                btcThb = btcThbVal,
                 moscowTime = moscowTimeVal,
                 mstrUsd = mstrPrice,
                 mstrBtc = mstrBtcRatio,
@@ -147,7 +214,11 @@ object PriceRepository {
                 lastFetchSuccessful = true,
                 feeFastest = fastestFeeVal,
                 feeHalfHour = halfHourFeeVal,
-                feeHour = hourFeeVal
+                feeHour = hourFeeVal,
+                difficultyChange = diffChangeVal,
+                difficultyProgress = diffProgressVal,
+                hashRate = hashrateVal,
+                lightningCapacity = lnCapacityVal
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching price data", e)
@@ -164,6 +235,7 @@ object PriceRepository {
         val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().apply {
             putFloat(KEY_BTC_USD, data.btcUsd.toFloat())
+            putFloat(KEY_BTC_THB, data.btcThb.toFloat())
             putInt(KEY_MOSCOW_TIME, data.moscowTime)
             putFloat(KEY_MSTR_USD, data.mstrUsd.toFloat())
             putFloat(KEY_MSTR_BTC, data.mstrBtc.toFloat())
@@ -176,6 +248,10 @@ object PriceRepository {
             putInt(KEY_FEE_FASTEST, data.feeFastest)
             putInt(KEY_FEE_HALF_HOUR, data.feeHalfHour)
             putInt(KEY_FEE_HOUR, data.feeHour)
+            putFloat(KEY_DIFFICULTY_CHANGE, data.difficultyChange.toFloat())
+            putFloat(KEY_DIFFICULTY_PROGRESS, data.difficultyProgress.toFloat())
+            putFloat(KEY_HASH_RATE, data.hashRate.toFloat())
+            putFloat(KEY_LIGHTNING_CAPACITY, data.lightningCapacity.toFloat())
             apply()
         }
     }
@@ -186,6 +262,7 @@ object PriceRepository {
         
         return PriceData(
             btcUsd = prefs.getFloat(KEY_BTC_USD, 0f).toDouble(),
+            btcThb = prefs.getFloat(KEY_BTC_THB, 0f).toDouble(),
             moscowTime = prefs.getInt(KEY_MOSCOW_TIME, 0),
             mstrUsd = prefs.getFloat(KEY_MSTR_USD, 0f).toDouble(),
             mstrBtc = prefs.getFloat(KEY_MSTR_BTC, 0f).toDouble(),
@@ -197,7 +274,11 @@ object PriceRepository {
             lastFetchSuccessful = prefs.getBoolean(KEY_LAST_FETCH_SUCCESSFUL, true),
             feeFastest = prefs.getInt(KEY_FEE_FASTEST, 1),
             feeHalfHour = prefs.getInt(KEY_FEE_HALF_HOUR, 1),
-            feeHour = prefs.getInt(KEY_FEE_HOUR, 1)
+            feeHour = prefs.getInt(KEY_FEE_HOUR, 1),
+            difficultyChange = prefs.getFloat(KEY_DIFFICULTY_CHANGE, 0f).toDouble(),
+            difficultyProgress = prefs.getFloat(KEY_DIFFICULTY_PROGRESS, 0f).toDouble(),
+            hashRate = prefs.getFloat(KEY_HASH_RATE, 0f).toDouble(),
+            lightningCapacity = prefs.getFloat(KEY_LIGHTNING_CAPACITY, 0f).toDouble()
         )
     }
 }

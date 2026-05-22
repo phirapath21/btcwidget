@@ -141,6 +141,36 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
                 valueColor = 0xFFC5A059.toInt()
                 subTextColor = 0xFF8A6D3B.toInt()
             }
+            5 -> { // Terminal Amber
+                bgResId = R.drawable.widget_background_amber
+                labelColor = 0xFF805800.toInt()
+                valueColor = 0xFFFFB000.toInt()
+                subTextColor = 0xFF805800.toInt()
+            }
+            6 -> { // Cyberpunk
+                bgResId = R.drawable.widget_background_cyberpunk
+                labelColor = 0xFF00F5FF.toInt()
+                valueColor = 0xFFFF007F.toInt()
+                subTextColor = 0xFF00F5FF.toInt()
+            }
+            7 -> { // Midnight Blue
+                bgResId = R.drawable.widget_background_midnight
+                labelColor = 0xFF64748B.toInt()
+                valueColor = 0xFF38BDF8.toInt()
+                subTextColor = 0xFF64748B.toInt()
+            }
+            8 -> { // Cypherpunk
+                bgResId = R.drawable.widget_background_cypherpunk
+                labelColor = 0xFF880000.toInt()
+                valueColor = 0xFFFF0000.toInt()
+                subTextColor = 0xFF880000.toInt()
+            }
+            9 -> { // Orange Pill
+                bgResId = R.drawable.widget_background_orangepill
+                labelColor = 0xFFA66210.toInt()
+                valueColor = 0xFFF7931A.toInt()
+                subTextColor = 0xFFA66210.toInt()
+            }
             else -> { // E-Ink Dark (Default)
                 bgResId = R.drawable.widget_background_dark
                 labelColor = 0xFF8E8E93.toInt()
@@ -195,8 +225,9 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
         views.setTextColor(subId, subTextColor)
         views.setInt(dividerId, "setBackgroundColor", labelColor)
 
-        val currency = "USD"
-        val symbol = "$"
+        val prefs = context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE)
+        val currency = prefs.getString("currency", "USD") ?: "USD"
+        val symbol = if (currency == "THB") "฿" else "$"
 
         val labelTopText: String
         val labelBottomText: String
@@ -212,17 +243,26 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
             0 -> {
                 labelTopText = "BTC"
                 labelBottomText = currency
-                valueText = String.format(Locale.US, "%s%.0f", symbol, data.btcUsd)
-                subText = "Market price of BTC"
+                valueText = if (currency == "THB") {
+                    String.format(Locale.US, "%.2f mil", data.btcThb / 1_000_000.0)
+                } else {
+                    String.format(Locale.US, "%s%,.0f", symbol, data.btcUsd)
+                }
+                subText = if (currency == "THB") "Market price of BTC (THB)" else "Market price of BTC"
                 showLabel = true
                 showSubText = true
                 showLbl_divider = true
             }
             1 -> {
                 labelTopText = "SATS"
-                labelBottomText = "1$currency"
-                valueText = String.format(Locale.US, "%d", data.moscowTime)
-                subText = "1$symbol per Satoshis"
+                labelBottomText = if (currency == "THB") "1 THB" else "1$currency"
+                val moscowTimeVal = if (currency == "THB") {
+                    if (data.btcThb > 0) (100_000_000.0 / data.btcThb).toInt() else 0
+                } else {
+                    data.moscowTime
+                }
+                valueText = String.format(Locale.US, "%,d", moscowTimeVal)
+                subText = if (currency == "THB") "฿1 per Satoshis" else "1$symbol per Satoshis"
                 showLabel = true
                 showSubText = true
                 showLbl_divider = true
@@ -230,7 +270,7 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
             2 -> {
                 labelTopText = ""
                 labelBottomText = ""
-                valueText = String.format(Locale.US, "%.0f", data.blockHeight.toDouble())
+                valueText = String.format(Locale.US, "%,d", data.blockHeight)
                 subText = "Bitcoin block height"
                 showLabel = false
                 showSubText = true
@@ -239,7 +279,12 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
             3 -> {
                 labelTopText = "MSCW"
                 labelBottomText = "TIME"
-                valueText = String.format(Locale.US, "%d", data.moscowTime)
+                val moscowTimeVal = if (currency == "THB") {
+                    if (data.btcThb > 0) (100_000_000.0 / data.btcThb).toInt() else 0
+                } else {
+                    data.moscowTime
+                }
+                valueText = String.format(Locale.US, "%d", moscowTimeVal)
                 subText = ""
                 showLabel = true
                 showSubText = false
@@ -248,7 +293,7 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
             4 -> {
                 labelTopText = "MSTR"
                 labelBottomText = "BTC"
-                valueText = String.format(Locale.US, "%.0f", data.mstrBtcHeld)
+                valueText = String.format(Locale.US, "%,.0f", data.mstrBtcHeld)
                 subText = "Strategy Inc. - BTC held"
                 showLabel = true
                 showSubText = true
@@ -265,8 +310,8 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
             }
             6 -> {
                 labelTopText = "MSTR"
-                labelBottomText = currency
-                valueText = String.format(Locale.US, "%s%.0f", symbol, data.mstrUsd)
+                labelBottomText = "USD"
+                valueText = String.format(Locale.US, "$%,.0f", data.mstrUsd)
                 subText = "Strategy Inc. - Share price"
                 showLabel = true
                 showSubText = true
@@ -303,11 +348,46 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
                 showSubText = true
                 showLbl_divider = true
             }
+            10 -> { // Hash Rate
+                labelTopText = "HASH"
+                labelBottomText = "RATE"
+                valueText = String.format(Locale.US, "%.1f", data.hashRate)
+                suffixText = "EH/s"
+                showSuffix = true
+                subText = "Network Hash Rate (3d)"
+                showLabel = true
+                showSubText = true
+                showLbl_divider = true
+            }
+            11 -> { // Difficulty Adjustment
+                labelTopText = "DIFF"
+                labelBottomText = "ADJ"
+                valueText = String.format(Locale.US, "%+.1f%%", data.difficultyChange)
+                subText = String.format(Locale.US, "Progress: %.1f%%", data.difficultyProgress)
+                showLabel = true
+                showSubText = true
+                showLbl_divider = true
+            }
+            12 -> { // Lightning Capacity
+                labelTopText = "LN"
+                labelBottomText = "CAP"
+                valueText = String.format(Locale.US, "%,.0f", data.lightningCapacity)
+                suffixText = "BTC"
+                showSuffix = true
+                subText = "Lightning Network Capacity"
+                showLabel = true
+                showSubText = true
+                showLbl_divider = true
+            }
             else -> {
                 labelTopText = "BTC"
                 labelBottomText = currency
-                valueText = String.format(Locale.US, "%s%.0f", symbol, data.btcUsd)
-                subText = "Market price of BTC"
+                valueText = if (currency == "THB") {
+                    String.format(Locale.US, "%.2f mil", data.btcThb / 1_000_000.0)
+                } else {
+                    String.format(Locale.US, "%s%,.0f", symbol, data.btcUsd)
+                }
+                subText = if (currency == "THB") "Market price of BTC (THB)" else "Market price of BTC"
                 showLabel = true
                 showSubText = true
                 showLbl_divider = true
@@ -365,6 +445,10 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
     }
 
     private fun triggerVibration(context: Context) {
+        val prefs = context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("haptic_enabled", true)) {
+            return
+        }
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -401,8 +485,8 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
 
     private fun getNextActiveMode(context: Context, currentMode: Int): Int {
         val prefs = context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE)
-        for (i in 1..10) {
-            val candidate = (currentMode + i) % 10
+        for (i in 1..13) {
+            val candidate = (currentMode + i) % 13
             if (prefs.getBoolean("mode_enabled_$candidate", true)) {
                 return candidate
             }
