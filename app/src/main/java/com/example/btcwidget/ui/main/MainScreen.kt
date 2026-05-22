@@ -3,6 +3,7 @@ package com.example.btcwidget.ui.main
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import kotlinx.coroutines.delay
 import com.example.btcwidget.BtcWidgetProvider
 import com.example.btcwidget.BtcDualWidgetProvider
 import com.example.btcwidget.R
@@ -46,21 +47,12 @@ fun MainScreen(
     val prefs = remember { context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE) }
     var currentTheme by remember { mutableStateOf(prefs.getInt("blockclock_theme", 0)) }
     var showSettings by remember { mutableStateOf(false) }
-    var maxiMode by remember { mutableStateOf(prefs.getBoolean("maxi_mode", true)) }
+    var autoSwitchEnabled by remember { mutableStateOf(prefs.getBoolean("auto_switch", false)) }
     var heroMetric by remember { mutableStateOf(prefs.getString("hero_metric", "BLOCK") ?: "BLOCK") }
 
-    val onMaxiModeChanged: (Boolean) -> Unit = { enabled ->
-        prefs.edit().putBoolean("maxi_mode", enabled).apply()
-        maxiMode = enabled
-        viewModel.refreshData(context)
-        val intent = Intent(context, BtcWidgetProvider::class.java).apply {
-            action = BtcWidgetProvider.ACTION_REFRESH
-        }
-        context.sendBroadcast(intent)
-        val dualIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
-            action = BtcDualWidgetProvider.ACTION_REFRESH
-        }
-        context.sendBroadcast(dualIntent)
+    val onAutoSwitchChanged: (Boolean) -> Unit = { enabled ->
+        prefs.edit().putBoolean("auto_switch", enabled).apply()
+        autoSwitchEnabled = enabled
     }
 
     val onHeroMetricSelected: (String) -> Unit = { metric ->
@@ -70,6 +62,16 @@ fun MainScreen(
 
     LaunchedEffect(Unit) {
         viewModel.loadInitialData(context)
+    }
+
+    LaunchedEffect(autoSwitchEnabled, heroMetric) {
+        if (autoSwitchEnabled) {
+            delay(5000L)
+            val chipsList = listOf("BLOCK", "PRICE", "SATS", "FEES")
+            val currentIndex = chipsList.indexOf(heroMetric)
+            val nextIndex = if (currentIndex != -1) (currentIndex + 1) % chipsList.size else 0
+            onHeroMetricSelected(chipsList[nextIndex])
+        }
     }
 
     val onThemeSelected: (Int) -> Unit = { newTheme ->
@@ -160,8 +162,8 @@ fun MainScreen(
                     }
                     context.sendBroadcast(dualWidgetIntent)
                 },
-                maxiMode = maxiMode,
-                onMaxiModeChanged = onMaxiModeChanged,
+                autoSwitchEnabled = autoSwitchEnabled,
+                onAutoSwitchChanged = onAutoSwitchChanged,
                 cardBgColor = themeCardBgColor,
                 borderColor = themeBorderColor,
                 valueColor = themeValueColor,
@@ -193,7 +195,6 @@ fun MainScreen(
                             data = currentState.data,
                             heroMetric = heroMetric,
                             onHeroMetricSelected = onHeroMetricSelected,
-                            maxiMode = maxiMode,
                             cardBgColor = themeCardBgColor,
                             borderColor = themeBorderColor,
                             valueColor = themeValueColor,
@@ -339,7 +340,6 @@ fun DashboardContent(
     data: PriceData,
     heroMetric: String,
     onHeroMetricSelected: (String) -> Unit,
-    maxiMode: Boolean,
     cardBgColor: Color,
     borderColor: Color,
     valueColor: Color,
@@ -461,8 +461,7 @@ fun DashboardContent(
         val visibleMetrics = allMetrics.filterIndexed { index, metric ->
             val isEnabled = enabledModes.getOrElse(index) { true }
             val isHero = metric.key == heroMetric
-            val isMstrExcluded = maxiMode && metric.isMstr
-            isEnabled && !isHero && !isMstrExcluded
+            isEnabled && !isHero
         }
 
         val rows = visibleMetrics.chunked(2)
@@ -829,8 +828,8 @@ fun SettingsScreen(
     context: Context,
     prefs: SharedPreferences,
     onSettingsChanged: () -> Unit,
-    maxiMode: Boolean,
-    onMaxiModeChanged: (Boolean) -> Unit,
+    autoSwitchEnabled: Boolean,
+    onAutoSwitchChanged: (Boolean) -> Unit,
     cardBgColor: Color,
     borderColor: Color,
     valueColor: Color,
@@ -888,7 +887,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Maxi Mode Option
+        // Auto Switch Mode Option
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -900,14 +899,14 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onMaxiModeChanged(!maxiMode) }
+                    .clickable { onAutoSwitchChanged(!autoSwitchEnabled) }
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Bitcoin Maxi Mode",
+                        text = "Auto Switch Modes",
                         color = valueColor,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -915,15 +914,15 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Hide corporate stocks, prioritize sovereign network stats",
+                        text = "Automatically cycle featured metric every 5 seconds",
                         color = subTextColor,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Serif
                     )
                 }
                 Switch(
-                    checked = maxiMode,
-                    onCheckedChange = onMaxiModeChanged,
+                    checked = autoSwitchEnabled,
+                    onCheckedChange = onAutoSwitchChanged,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = cardBgColor,
                         checkedTrackColor = borderColor,
