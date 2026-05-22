@@ -121,46 +121,8 @@ fun MainScreen(
             .fillMaxSize()
             .background(themeBgColor)
     ) {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            HeaderSection(
-                titleColor = themeBorderColor,
-                subtitleColor = themeLabelColor,
-                onSettingsClick = { showSettings = true }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            when (val currentState = state) {
-                is MainScreenUiState.Loading -> {
-                    LoadingScreen()
-                }
-                is MainScreenUiState.Success -> {
-                    DashboardContent(
-                        data = currentState.data,
-                        cardBgColor = themeCardBgColor,
-                        borderColor = themeBorderColor,
-                        valueColor = themeValueColor,
-                        labelColor = themeLabelColor,
-                        subTextColor = themeSubTextColor
-                    )
-                }
-                is MainScreenUiState.Error -> {
-                    ErrorScreen(
-                        error = currentState.throwable,
-                        onRefresh = { viewModel.refreshData(context) }
-                    )
-                }
-            }
-        }
-
         if (showSettings) {
-            SettingsDialog(
+            SettingsScreen(
                 onDismissRequest = { showSettings = false },
                 currentTheme = currentTheme,
                 onThemeSelected = onThemeSelected,
@@ -183,6 +145,44 @@ fun MainScreen(
                 labelColor = themeLabelColor,
                 subTextColor = themeSubTextColor
             )
+        } else {
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                HeaderSection(
+                    titleColor = themeBorderColor,
+                    subtitleColor = themeLabelColor,
+                    onSettingsClick = { showSettings = true }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                when (val currentState = state) {
+                    is MainScreenUiState.Loading -> {
+                        LoadingScreen()
+                    }
+                    is MainScreenUiState.Success -> {
+                        DashboardContent(
+                            data = currentState.data,
+                            cardBgColor = themeCardBgColor,
+                            borderColor = themeBorderColor,
+                            valueColor = themeValueColor,
+                            labelColor = themeLabelColor,
+                            subTextColor = themeSubTextColor
+                        )
+                    }
+                    is MainScreenUiState.Error -> {
+                        ErrorScreen(
+                            error = currentState.throwable,
+                            onRefresh = { viewModel.refreshData(context) }
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -778,7 +778,7 @@ fun BlockclockCard(
 }
 
 @Composable
-fun SettingsDialog(
+fun SettingsScreen(
     onDismissRequest: () -> Unit,
     currentTheme: Int,
     onThemeSelected: (Int) -> Unit,
@@ -791,87 +791,96 @@ fun SettingsDialog(
     labelColor: Color,
     subTextColor: Color
 ) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest) {
-        Surface(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Settings Header
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .border(BorderStroke(1.5.dp, borderColor), shape = RoundedCornerShape(12.dp)),
-            shape = RoundedCornerShape(12.dp),
-            color = cardBgColor
+                .padding(vertical = 12.dp)
         ) {
-            Column(
+            IconButton(
+                onClick = onDismissRequest,
                 modifier = Modifier
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .align(Alignment.CenterStart)
+                    .size(40.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "CONSOLE SETTINGS",
-                        color = valueColor,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        letterSpacing = 1.sp
-                    )
-                    IconButton(onClick = onDismissRequest) {
-                        Text(
-                            text = "✕",
-                            color = valueColor,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                ThemeSelectorSection(
-                    currentTheme = currentTheme,
-                    onThemeSelected = onThemeSelected,
-                    labelColor = labelColor
+                Text(
+                    text = "←",
+                    color = borderColor,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SettingsPanelCard(
-                    context = context,
-                    prefs = prefs,
-                    onSettingsChanged = onSettingsChanged,
-                    cardBgColor = cardBgColor,
-                    borderColor = borderColor,
-                    valueColor = valueColor,
-                    labelColor = labelColor,
-                    subTextColor = subTextColor
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = onDismissRequest,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = borderColor,
-                        contentColor = cardBgColor
-                    ),
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                ) {
-                    Text(
-                        text = "Apply & Close",
-                        color = cardBgColor,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        fontFamily = FontFamily.Serif
-                    )
-                }
             }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "CONSOLE SETTINGS",
+                    color = borderColor,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Personalization & System Settings",
+                    color = labelColor,
+                    fontSize = 13.sp,
+                    fontFamily = FontFamily.Serif
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        ThemeSelectorSection(
+            currentTheme = currentTheme,
+            onThemeSelected = onThemeSelected,
+            labelColor = labelColor
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        SettingsPanelCard(
+            context = context,
+            prefs = prefs,
+            onSettingsChanged = onSettingsChanged,
+            cardBgColor = cardBgColor,
+            borderColor = borderColor,
+            valueColor = valueColor,
+            labelColor = labelColor,
+            subTextColor = subTextColor
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onDismissRequest,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = borderColor,
+                contentColor = cardBgColor
+            ),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        ) {
+            Text(
+                text = "Apply & Return",
+                color = cardBgColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Serif
+            )
         }
     }
 }
