@@ -99,22 +99,6 @@ fun MainScreen(
             themeSubTextColor = Color(0xFF8A6D3B)
             themeBorderColor = Color(0xFFC5A059)
         }
-        5 -> { // Amber Phosphor
-            themeBgColor = Color(0xFF1C0F02)
-            themeCardBgColor = Color(0xFF0A0A0C)
-            themeValueColor = Color(0xFFF59E0B)
-            themeLabelColor = Color(0xFFD97706)
-            themeSubTextColor = Color(0xFFD97706)
-            themeBorderColor = Color(0xFFF59E0B)
-        }
-        6 -> { // GameBoy Classic
-            themeBgColor = Color(0xFF306230)
-            themeCardBgColor = Color(0xFF8BAC0F)
-            themeValueColor = Color(0xFF0F380F)
-            themeLabelColor = Color(0xFF306230)
-            themeSubTextColor = Color(0xFF306230)
-            themeBorderColor = Color(0xFF0F380F)
-        }
         else -> { // E-Ink Dark (Default)
             themeBgColor = Color(0xFF0C0C0E)
             themeCardBgColor = Color(0xFF121214)
@@ -214,9 +198,7 @@ fun ThemeSelectorSection(
                 Triple(1, "Light", Color(0xFFF4F4F5)),
                 Triple(2, "Orange", Color(0xFFF7931A)),
                 Triple(3, "Matrix", Color(0xFF10B981)),
-                Triple(4, "Gold", Color(0xFFC5A059)),
-                Triple(5, "Amber", Color(0xFFF59E0B)),
-                Triple(6, "GameBoy", Color(0xFF8BAC0F))
+                Triple(4, "Gold", Color(0xFFC5A059))
             )
 
             themesList.forEach { (index, name, color) ->

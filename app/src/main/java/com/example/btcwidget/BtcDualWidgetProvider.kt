@@ -140,18 +140,6 @@ class BtcDualWidgetProvider : AppWidgetProvider() {
                 valueColor = 0xFFC5A059.toInt()
                 subTextColor = 0xFF8A6D3B.toInt()
             }
-            5 -> { // Amber Phosphor
-                bgResId = R.drawable.widget_background_amber
-                labelColor = 0xFFD97706.toInt()
-                valueColor = 0xFFF59E0B.toInt()
-                subTextColor = 0xFFD97706.toInt()
-            }
-            6 -> { // GameBoy Classic
-                bgResId = R.drawable.widget_background_gameboy
-                labelColor = 0xFF306230.toInt()
-                valueColor = 0xFF0F380F.toInt()
-                subTextColor = 0xFF306230.toInt()
-            }
             else -> { // E-Ink Dark (Default)
                 bgResId = R.drawable.widget_background_dark
                 labelColor = 0xFF8E8E93.toInt()
