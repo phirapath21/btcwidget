@@ -262,6 +262,19 @@ fun HeaderSection(
             .fillMaxWidth()
             .padding(vertical = 12.dp)
     ) {
+        IconButton(
+            onClick = onSettingsClick,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .size(40.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_menu),
+                contentDescription = "Settings Menu",
+                tint = titleColor,
+                modifier = Modifier.size(24.dp)
+            )
+        }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
@@ -280,19 +293,6 @@ fun HeaderSection(
                 color = subtitleColor,
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Serif
-            )
-        }
-        IconButton(
-            onClick = onSettingsClick,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(40.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_settings),
-                contentDescription = "Settings",
-                tint = titleColor,
-                modifier = Modifier.size(24.dp)
             )
         }
     }
