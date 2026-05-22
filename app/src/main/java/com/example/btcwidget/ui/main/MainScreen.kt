@@ -46,6 +46,27 @@ fun MainScreen(
     val prefs = remember { context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE) }
     var currentTheme by remember { mutableStateOf(prefs.getInt("blockclock_theme", 0)) }
     var showSettings by remember { mutableStateOf(false) }
+    var maxiMode by remember { mutableStateOf(prefs.getBoolean("maxi_mode", true)) }
+    var heroMetric by remember { mutableStateOf(prefs.getString("hero_metric", "BLOCK") ?: "BLOCK") }
+
+    val onMaxiModeChanged: (Boolean) -> Unit = { enabled ->
+        prefs.edit().putBoolean("maxi_mode", enabled).apply()
+        maxiMode = enabled
+        viewModel.refreshData(context)
+        val intent = Intent(context, BtcWidgetProvider::class.java).apply {
+            action = BtcWidgetProvider.ACTION_REFRESH
+        }
+        context.sendBroadcast(intent)
+        val dualIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
+            action = BtcDualWidgetProvider.ACTION_REFRESH
+        }
+        context.sendBroadcast(dualIntent)
+    }
+
+    val onHeroMetricSelected: (String) -> Unit = { metric ->
+        prefs.edit().putString("hero_metric", metric).apply()
+        heroMetric = metric
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadInitialData(context)
@@ -139,6 +160,8 @@ fun MainScreen(
                     }
                     context.sendBroadcast(dualWidgetIntent)
                 },
+                maxiMode = maxiMode,
+                onMaxiModeChanged = onMaxiModeChanged,
                 cardBgColor = themeCardBgColor,
                 borderColor = themeBorderColor,
                 valueColor = themeValueColor,
@@ -168,6 +191,9 @@ fun MainScreen(
                     is MainScreenUiState.Success -> {
                         DashboardContent(
                             data = currentState.data,
+                            heroMetric = heroMetric,
+                            onHeroMetricSelected = onHeroMetricSelected,
+                            maxiMode = maxiMode,
                             cardBgColor = themeCardBgColor,
                             borderColor = themeBorderColor,
                             valueColor = themeValueColor,
@@ -298,17 +324,44 @@ fun HeaderSection(
     }
 }
 
+data class MetricItem(
+    val key: String,
+    val labelTop: String,
+    val labelBottom: String,
+    val value: String,
+    val subtext: String,
+    val isMstr: Boolean,
+    val suffix: String = ""
+)
+
 @Composable
 fun DashboardContent(
     data: PriceData,
+    heroMetric: String,
+    onHeroMetricSelected: (String) -> Unit,
+    maxiMode: Boolean,
     cardBgColor: Color,
     borderColor: Color,
     valueColor: Color,
     labelColor: Color,
     subTextColor: Color
 ) {
-    val currency = "USD"
-    val symbol = "$"
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE) }
+    val enabledModes = (0..9).map { prefs.getBoolean("mode_enabled_$it", true) }
+
+    val allMetrics = listOf(
+        MetricItem(key = "PRICE", labelTop = "BTC", labelBottom = "USD", value = String.format(Locale.US, "$%,.0f", data.btcUsd), subtext = "Market price of bitcoin", isMstr = false),
+        MetricItem(key = "SATS", labelTop = "SATS", labelBottom = "1\$USD", value = String.format(Locale.US, "%,d", data.moscowTime), subtext = "$1 per Satoshis (Moscow Time)", isMstr = false),
+        MetricItem(key = "BLOCK", labelTop = "BLOCK", labelBottom = "HGHT", value = String.format(Locale.US, "%,d", data.blockHeight), subtext = "Current bitcoin block height", isMstr = false),
+        MetricItem(key = "MSCW", labelTop = "MSCW", labelBottom = "TIME", value = String.format(Locale.US, "%d", data.moscowTime), subtext = "Moscow Time clock face", isMstr = false),
+        MetricItem(key = "MSTR_HELD", labelTop = "MSTR", labelBottom = "BTC", value = String.format(Locale.US, "%,.0f", data.mstrBtcHeld), subtext = "Strategy Inc. - BTC held", isMstr = true),
+        MetricItem(key = "MSTR_RATIO", labelTop = "MSTR", labelBottom = "BTC", value = String.format(Locale.US, "%.5f", data.mstrBtc), subtext = "Strategy Inc. - BTC per share", isMstr = true),
+        MetricItem(key = "MSTR_PRICE", labelTop = "MSTR", labelBottom = "USD", value = String.format(Locale.US, "$%,.0f", data.mstrUsd), subtext = "Strategy Inc. - Share price", isMstr = true),
+        MetricItem(key = "CIRCULATION", labelTop = "BTC", labelBottom = "CIRC", value = String.format(Locale.US, "%.3f", data.btcCirculation / 1_000_000.0), suffix = "MIL", subtext = "Bitcoin in circulation", isMstr = false),
+        MetricItem(key = "HALVING", labelTop = "HALV", labelBottom = "BLKS", value = String.format(Locale.US, "%,d", 210000 - (data.blockHeight % 210000)), subtext = "Blocks to next halving", isMstr = false),
+        MetricItem(key = "FEES", labelTop = "FEES", labelBottom = "sat/vB", value = String.format(Locale.US, "%d", data.feeFastest), subtext = String.format(Locale.US, "Mid: %d / Low: %d", data.feeHalfHour, data.feeHour), isMstr = false)
+    )
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -343,202 +396,104 @@ fun DashboardContent(
             }
         }
 
-        // Grid layout of 8 mock Blockclocks (4 rows of 2 columns)
-        
-        // Row 1: BTC/USD & SATS/1USD
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            BlockclockCard(
-                labelTop = "BTC",
-                labelBottom = currency,
-                value = String.format(Locale.US, "%s%.0f", symbol, data.btcUsd),
-                subtext = "Market price of bitcoin",
-                showLabel = true,
-                showLbl_divider = true,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
-            BlockclockCard(
-                labelTop = "SATS",
-                labelBottom = "1$currency",
-                value = String.format(Locale.US, "%,d", data.moscowTime),
-                subtext = "1$symbol per Satoshis",
-                showLabel = true,
-                showLbl_divider = true,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
+        // Hero Metric Card
+        val heroData = when (heroMetric) {
+            "PRICE" -> Triple("BTC", "USD", String.format(Locale.US, "$%,.0f", data.btcUsd)) to "Market price of bitcoin"
+            "SATS" -> Triple("SATS", "1\$USD", String.format(Locale.US, "%,d", data.moscowTime)) to "$1 per Satoshis"
+            "FEES" -> Triple("FEES", "sat/vB", String.format(Locale.US, "%d", data.feeFastest)) to String.format(Locale.US, "Mid: %d / Low: %d sat/vB", data.feeHalfHour, data.feeHour)
+            else -> Triple("BLOCK", "HGHT", String.format(Locale.US, "%,d", data.blockHeight)) to "Bitcoin block height"
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        HeroBlockclockCard(
+            labelTop = heroData.first.first,
+            labelBottom = heroData.first.second,
+            value = heroData.first.third,
+            subtext = heroData.second,
+            cardBgColor = cardBgColor,
+            borderColor = borderColor,
+            valueColor = valueColor,
+            labelColor = labelColor,
+            subTextColor = subTextColor
+        )
 
-        // Row 2: Block Height & Moscow Time
+        // Hero Selector row
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            BlockclockCard(
-                labelTop = "",
-                labelBottom = "",
-                value = String.format(Locale.US, "%.0f", data.blockHeight.toDouble()),
-                subtext = "Bitcoin block height",
-                showLabel = false,
-                showLbl_divider = false,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
+            val chips = listOf(
+                "BLOCK" to "BLOCK",
+                "PRICE" to "PRICE",
+                "SATS" to "SATS",
+                "FEES" to "FEES"
             )
-            BlockclockCard(
-                labelTop = "MSCW",
-                labelBottom = "TIME",
-                value = String.format(Locale.US, "%d", data.moscowTime),
-                subtext = "",
-                showLabel = true,
-                showLbl_divider = true,
-                showSubText = false,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
+            chips.forEach { (label, key) ->
+                val isSelected = heroMetric == key
+                Box(
+                    modifier = Modifier
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) borderColor else labelColor.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .background(
+                            color = if (isSelected) borderColor.copy(alpha = 0.15f) else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .clickable { onHeroMetricSelected(key) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = if (isSelected) "[$label]" else " $label ",
+                        color = if (isSelected) borderColor else labelColor,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Row 3: MSTR BTC (held) & MSTR/BTC (ratio)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            BlockclockCard(
-                labelTop = "MSTR",
-                labelBottom = "BTC",
-                value = String.format(Locale.US, "%,.0f", data.mstrBtcHeld),
-                subtext = "Strategy Inc. - BTC held",
-                showLabel = true,
-                showLbl_divider = true,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
-            BlockclockCard(
-                labelTop = "MSTR",
-                labelBottom = "BTC",
-                value = String.format(Locale.US, "%.5f", data.mstrBtc),
-                subtext = "Strategy Inc. - BTC per share",
-                showLabel = true,
-                showLbl_divider = true,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
+        // Secondary Metrics Grid
+        val visibleMetrics = allMetrics.filterIndexed { index, metric ->
+            val isEnabled = enabledModes.getOrElse(index) { true }
+            val isHero = metric.key == heroMetric
+            val isMstrExcluded = maxiMode && metric.isMstr
+            isEnabled && !isHero && !isMstrExcluded
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Row 4: MSTR/USD & BTC in circulation
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            BlockclockCard(
-                labelTop = "MSTR",
-                labelBottom = currency,
-                value = String.format(Locale.US, "%s%.0f", symbol, data.mstrUsd),
-                subtext = "Strategy Inc. - Share price",
-                showLabel = true,
-                showLbl_divider = true,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
-            val circInMillions = data.btcCirculation / 1_000_000.0
-            BlockclockCard(
-                labelTop = "BTC",
-                labelBottom = "",
-                value = String.format(Locale.US, "%.3f", circInMillions),
-                suffix = "MIL",
-                subtext = "Bitcoin in circulation",
-                showLabel = true,
-                showLbl_divider = false,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Row 5: Halving Countdown & Mempool Priority Fees
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            val halvingRemaining = 210000 - (data.blockHeight % 210000)
-            BlockclockCard(
-                labelTop = "HALV",
-                labelBottom = "BLKS",
-                value = String.format(Locale.US, "%,d", halvingRemaining),
-                subtext = "Blocks to next halving",
-                showLabel = true,
-                showLbl_divider = true,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
-            BlockclockCard(
-                labelTop = "FEES",
-                labelBottom = "sat/vB",
-                value = String.format(Locale.US, "%d", data.feeFastest),
-                subtext = String.format(Locale.US, "Mid: %d / Low: %d", data.feeHalfHour, data.feeHour),
-                showLabel = true,
-                showLbl_divider = true,
-                showSubText = true,
-                modifier = Modifier.weight(1f),
-                cardBgColor = cardBgColor,
-                borderColor = borderColor,
-                valueColor = valueColor,
-                labelColor = labelColor,
-                subTextColor = subTextColor
-            )
+        val rows = visibleMetrics.chunked(2)
+        rows.forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                rowItems.forEach { item ->
+                    BlockclockCard(
+                        labelTop = item.labelTop,
+                        labelBottom = item.labelBottom,
+                        value = item.value,
+                        suffix = item.suffix,
+                        subtext = item.subtext,
+                        showLabel = item.labelTop.isNotEmpty(),
+                        showLbl_divider = item.labelBottom.isNotEmpty(),
+                        showSubText = item.subtext.isNotEmpty(),
+                        modifier = Modifier.weight(1f),
+                        cardBgColor = cardBgColor,
+                        borderColor = borderColor,
+                        valueColor = valueColor,
+                        labelColor = labelColor,
+                        subTextColor = subTextColor
+                    )
+                }
+                if (rowItems.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -552,8 +507,7 @@ fun DashboardContent(
             fontFamily = FontFamily.Serif,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-    }
-}
+    }}
 
 @Composable
 fun SettingsPanelCard(
@@ -671,6 +625,94 @@ fun SettingsPanelCard(
 }
 
 @Composable
+fun HeroBlockclockCard(
+    labelTop: String,
+    labelBottom: String,
+    value: String,
+    subtext: String,
+    suffix: String = "",
+    cardBgColor: Color,
+    borderColor: Color,
+    valueColor: Color,
+    labelColor: Color,
+    subTextColor: Color
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBgColor),
+        border = BorderStroke(2.dp, borderColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (labelBottom.isNotEmpty()) "$labelTop // $labelBottom" else labelTop,
+                    color = labelColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp
+                )
+                
+                Text(
+                    text = "◆ HERO STATUS ◆",
+                    color = borderColor,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = value,
+                    color = valueColor,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif,
+                    letterSpacing = (-0.5).sp,
+                    maxLines = 1
+                )
+                if (suffix.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = suffix,
+                        color = labelColor,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif
+                    )
+                }
+            }
+
+            Text(
+                text = subtext,
+                color = subTextColor,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Normal
+            )
+        }
+    }
+}
+
+@Composable
 fun BlockclockCard(
     labelTop: String,
     labelBottom: String,
@@ -698,7 +740,7 @@ fun BlockclockCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -718,25 +760,25 @@ fun BlockclockCard(
                         Text(
                             text = labelTop,
                             color = labelColor,
-                            fontSize = 10.sp,
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif
+                            fontFamily = FontFamily.Monospace
                         )
                         if (labelBottom.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(2.dp))
                             Box(
                                 modifier = Modifier
-                                    .width(22.dp)
+                                    .width(20.dp)
                                     .height(1.dp)
-                                    .background(labelColor)
+                                    .background(labelColor.copy(alpha = 0.5f))
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = labelBottom,
                                 color = labelColor,
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Serif
+                                fontFamily = FontFamily.Monospace
                             )
                         }
                     }
@@ -753,11 +795,11 @@ fun BlockclockCard(
                 )
 
                 if (suffix.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = suffix,
                         color = labelColor,
-                        fontSize = 10.sp,
+                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Serif
                     )
@@ -765,14 +807,16 @@ fun BlockclockCard(
             }
 
             // Lowercase gray footer description
-            Text(
-                text = subtext,
-                color = subTextColor,
-                fontSize = 8.5.sp,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Normal,
-                modifier = Modifier.padding(bottom = 2.dp)
-            )
+            if (showSubText) {
+                Text(
+                    text = subtext,
+                    color = subTextColor,
+                    fontSize = 8.sp,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Normal,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+            }
         }
     }
 }
@@ -785,6 +829,8 @@ fun SettingsScreen(
     context: Context,
     prefs: SharedPreferences,
     onSettingsChanged: () -> Unit,
+    maxiMode: Boolean,
+    onMaxiModeChanged: (Boolean) -> Unit,
     cardBgColor: Color,
     borderColor: Color,
     valueColor: Color,
@@ -836,6 +882,54 @@ fun SettingsScreen(
                     color = labelColor,
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Serif
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Maxi Mode Option
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+            border = BorderStroke(1.5.dp, borderColor)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onMaxiModeChanged(!maxiMode) }
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Bitcoin Maxi Mode",
+                        color = valueColor,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Hide corporate stocks, prioritize sovereign network stats",
+                        color = subTextColor,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Serif
+                    )
+                }
+                Switch(
+                    checked = maxiMode,
+                    onCheckedChange = onMaxiModeChanged,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = cardBgColor,
+                        checkedTrackColor = borderColor,
+                        uncheckedThumbColor = labelColor,
+                        uncheckedTrackColor = cardBgColor
+                    )
                 )
             }
         }
