@@ -33,74 +33,107 @@ class BtcWidgetProvider : AppWidgetProvider() {
         ) {
             val mode = getWidgetMode(context, appWidgetId)
             val theme = getWidgetTheme(context)
-            val views = RemoteViews(context.packageName, R.layout.btc_widget_blockclock)
+            val layoutId = if (theme == 10) R.layout.btc_widget_blockclock else R.layout.btc_widget_blockclock_retro
+            val views = RemoteViews(context.packageName, layoutId)
 
             // Theme colors and background resource mapping
             val bgResId: Int
             val labelColor: Int
             val valueColor: Int
             val subTextColor: Int
+            val dividerColor: Int
 
-            when (theme) {
-                1 -> { // E-Ink Light
-                    bgResId = R.drawable.widget_background_light
-                    labelColor = 0xFF71717A.toInt()
-                    valueColor = 0xFF18181B.toInt()
-                    subTextColor = 0xFF71717A.toInt()
+            if (theme == 10) {
+                bgResId = R.drawable.widget_background_dynamic
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    labelColor = context.getColor(R.color.widget_text_secondary)
+                    valueColor = context.getColor(R.color.widget_text_primary)
+                    subTextColor = context.getColor(R.color.widget_text_secondary)
+                    dividerColor = context.getColor(R.color.widget_stroke_color)
+                } else {
+                    @Suppress("DEPRECATION")
+                    labelColor = context.resources.getColor(R.color.widget_text_secondary)
+                    @Suppress("DEPRECATION")
+                    valueColor = context.resources.getColor(R.color.widget_text_primary)
+                    @Suppress("DEPRECATION")
+                    subTextColor = context.resources.getColor(R.color.widget_text_secondary)
+                    @Suppress("DEPRECATION")
+                    dividerColor = context.resources.getColor(R.color.widget_stroke_color)
                 }
-                2 -> { // Bitcoin Orange
-                    bgResId = R.drawable.widget_background_orange
-                    labelColor = 0xFF78350F.toInt()
-                    valueColor = 0xFF121214.toInt()
-                    subTextColor = 0xFF78350F.toInt()
+            } else {
+                dividerColor = when (theme) {
+                    1 -> 0xFF71717A.toInt() // E-Ink Light
+                    2 -> 0xFF78350F.toInt() // Bitcoin Orange
+                    3 -> 0xFF047857.toInt() // Matrix Green
+                    4 -> 0xFF8A6D3B.toInt() // Coinkite Gold
+                    5 -> 0xFF805800.toInt() // Terminal Amber
+                    6 -> 0xFF00F5FF.toInt() // Cyberpunk
+                    7 -> 0xFF64748B.toInt() // Midnight Blue
+                    8 -> 0xFF880000.toInt() // Cypherpunk
+                    9 -> 0xFFA66210.toInt() // Orange Pill
+                    else -> 0xFF8E8E93.toInt() // E-Ink Dark (Default)
                 }
-                3 -> { // Matrix Green
-                    bgResId = R.drawable.widget_background_green
-                    labelColor = 0xFF047857.toInt()
-                    valueColor = 0xFF10B981.toInt()
-                    subTextColor = 0xFF047857.toInt()
-                }
-                4 -> { // Coinkite Gold
-                    bgResId = R.drawable.widget_background_gold
-                    labelColor = 0xFF8A6D3B.toInt()
-                    valueColor = 0xFFC5A059.toInt()
-                    subTextColor = 0xFF8A6D3B.toInt()
-                }
-                5 -> { // Terminal Amber
-                    bgResId = R.drawable.widget_background_amber
-                    labelColor = 0xFF805800.toInt()
-                    valueColor = 0xFFFFB000.toInt()
-                    subTextColor = 0xFF805800.toInt()
-                }
-                6 -> { // Cyberpunk
-                    bgResId = R.drawable.widget_background_cyberpunk
-                    labelColor = 0xFF00F5FF.toInt()
-                    valueColor = 0xFFFF007F.toInt()
-                    subTextColor = 0xFF00F5FF.toInt()
-                }
-                7 -> { // Midnight Blue
-                    bgResId = R.drawable.widget_background_midnight
-                    labelColor = 0xFF64748B.toInt()
-                    valueColor = 0xFF38BDF8.toInt()
-                    subTextColor = 0xFF64748B.toInt()
-                }
-                8 -> { // Cypherpunk
-                    bgResId = R.drawable.widget_background_cypherpunk
-                    labelColor = 0xFF880000.toInt()
-                    valueColor = 0xFFFF0000.toInt()
-                    subTextColor = 0xFF880000.toInt()
-                }
-                9 -> { // Orange Pill
-                    bgResId = R.drawable.widget_background_orangepill
-                    labelColor = 0xFFA66210.toInt()
-                    valueColor = 0xFFF7931A.toInt()
-                    subTextColor = 0xFFA66210.toInt()
-                }
-                else -> { // E-Ink Dark (Default)
-                    bgResId = R.drawable.widget_background_dark
-                    labelColor = 0xFF8E8E93.toInt()
-                    valueColor = 0xFFE4E4E7.toInt()
-                    subTextColor = 0xFF8E8E93.toInt()
+                when (theme) {
+                    1 -> { // E-Ink Light
+                        bgResId = R.drawable.widget_background_light
+                        labelColor = 0xFF71717A.toInt()
+                        valueColor = 0xFF18181B.toInt()
+                        subTextColor = 0xFF71717A.toInt()
+                    }
+                    2 -> { // Bitcoin Orange
+                        bgResId = R.drawable.widget_background_orange
+                        labelColor = 0xFF78350F.toInt()
+                        valueColor = 0xFF121214.toInt()
+                        subTextColor = 0xFF78350F.toInt()
+                    }
+                    3 -> { // Matrix Green
+                        bgResId = R.drawable.widget_background_green
+                        labelColor = 0xFF047857.toInt()
+                        valueColor = 0xFF10B981.toInt()
+                        subTextColor = 0xFF047857.toInt()
+                    }
+                    4 -> { // Coinkite Gold
+                        bgResId = R.drawable.widget_background_gold
+                        labelColor = 0xFF8A6D3B.toInt()
+                        valueColor = 0xFFC5A059.toInt()
+                        subTextColor = 0xFF8A6D3B.toInt()
+                    }
+                    5 -> { // Terminal Amber
+                        bgResId = R.drawable.widget_background_amber
+                        labelColor = 0xFF805800.toInt()
+                        valueColor = 0xFFFFB000.toInt()
+                        subTextColor = 0xFF805800.toInt()
+                    }
+                    6 -> { // Cyberpunk
+                        bgResId = R.drawable.widget_background_cyberpunk
+                        labelColor = 0xFF00F5FF.toInt()
+                        valueColor = 0xFFFF007F.toInt()
+                        subTextColor = 0xFF00F5FF.toInt()
+                    }
+                    7 -> { // Midnight Blue
+                        bgResId = R.drawable.widget_background_midnight
+                        labelColor = 0xFF64748B.toInt()
+                        valueColor = 0xFF38BDF8.toInt()
+                        subTextColor = 0xFF64748B.toInt()
+                    }
+                    8 -> { // Cypherpunk
+                        bgResId = R.drawable.widget_background_cypherpunk
+                        labelColor = 0xFF880000.toInt()
+                        valueColor = 0xFFFF0000.toInt()
+                        subTextColor = 0xFF880000.toInt()
+                    }
+                    9 -> { // Orange Pill
+                        bgResId = R.drawable.widget_background_orangepill
+                        labelColor = 0xFFA66210.toInt()
+                        valueColor = 0xFFF7931A.toInt()
+                        subTextColor = 0xFFA66210.toInt()
+                    }
+                    else -> { // E-Ink Dark (Default)
+                        bgResId = R.drawable.widget_background_dark
+                        labelColor = 0xFF8E8E93.toInt()
+                        valueColor = 0xFFE4E4E7.toInt()
+                        subTextColor = 0xFF8E8E93.toInt()
+                    }
                 }
             }
 
@@ -111,7 +144,7 @@ class BtcWidgetProvider : AppWidgetProvider() {
             views.setTextColor(R.id.txt_blockclock_value, valueColor)
             views.setTextColor(R.id.txt_blockclock_suffix, labelColor)
             views.setTextColor(R.id.txt_blockclock_sub, subTextColor)
-            views.setInt(R.id.lbl_divider, "setBackgroundColor", labelColor)
+            views.setInt(R.id.lbl_divider, "setBackgroundColor", dividerColor)
 
             // Bind data based on active mode
             val prefs = context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE)
@@ -363,7 +396,7 @@ class BtcWidgetProvider : AppWidgetProvider() {
 
         private fun getWidgetTheme(context: Context): Int {
             val prefs = context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE)
-            return prefs.getInt("blockclock_theme", 0) // Default to 0 (E-Ink Dark)
+            return prefs.getInt("blockclock_theme", 10) // Default to 10 (Android 16 Dynamic Theme)
         }
 
         private fun getNextActiveMode(context: Context, currentMode: Int): Int {

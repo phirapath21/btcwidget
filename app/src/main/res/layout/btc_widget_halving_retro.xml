@@ -3,8 +3,8 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background_dynamic"
-    android:padding="10dp">
+    android:background="@drawable/widget_background"
+    android:padding="8dp">
 
     <LinearLayout
         android:id="@+id/center_layout"
@@ -21,7 +21,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="4dp">
+            android:layout_marginBottom="2dp">
 
             <!-- Stacked Label Container (Left side of value) -->
             <LinearLayout
@@ -38,10 +38,10 @@
                     android:id="@+id/txt_halving_label_top"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/widget_text_secondary"
+                    android:textColor="#E4E4E7"
                     android:textSize="9sp"
                     android:textStyle="bold"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="monospace"
                     android:includeFontPadding="false" />
 
                 <!-- Separator line -->
@@ -49,7 +49,7 @@
                     android:id="@+id/lbl_divider"
                     android:layout_width="16dp"
                     android:layout_height="1dp"
-                    android:background="@color/widget_stroke_color"
+                    android:background="#E4E4E7"
                     android:layout_marginVertical="1.5dp" />
 
                 <!-- Bottom text label -->
@@ -57,10 +57,10 @@
                     android:id="@+id/txt_halving_label_bottom"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/widget_text_secondary"
+                    android:textColor="#E4E4E7"
                     android:textSize="9sp"
                     android:textStyle="bold"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="monospace"
                     android:includeFontPadding="false" />
             </LinearLayout>
 
@@ -70,34 +70,22 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
-                android:letterSpacing="-0.01"
+                android:fontFamily="monospace"
+                android:letterSpacing="-0.02"
                 android:maxLines="1"
-                android:textColor="@color/widget_text_primary"
+                android:textColor="#E4E4E7"
                 android:textSize="22sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Visual Progress Bar (Shown for modern Android 16 theme) -->
-        <ProgressBar
-            android:id="@+id/progress_bar_visual"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="6dp"
-            android:layout_marginHorizontal="12dp"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="4dp"
-            android:progressDrawable="@drawable/widget_progress_drawable"
-            android:visibility="gone" />
-
-        <!-- Visual Progress Bar (Character text, shown for retro themes) -->
+        <!-- Visual Progress Bar -->
         <TextView
             android:id="@+id/txt_halving_progress_bar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
             android:singleLine="true"
-            android:textColor="@color/widget_text_primary"
+            android:textColor="#E4E4E7"
             android:textSize="11sp"
             android:textStyle="bold"
             android:layout_marginBottom="2dp" />
@@ -108,9 +96,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:fontFamily="sans-serif"
+            android:fontFamily="monospace"
             android:singleLine="true"
-            android:textColor="@color/widget_text_secondary"
-            android:textSize="9sp" />
+            android:textColor="#8E8E93"
+            android:textSize="8.5sp" />
     </LinearLayout>
 </RelativeLayout>

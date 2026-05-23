@@ -3,8 +3,8 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background_dynamic"
-    android:padding="12dp">
+    android:background="@drawable/widget_background"
+    android:padding="10dp">
 
     <!-- Center Display Layout (Horizontally aligning label, value, and suffix) -->
     <LinearLayout
@@ -32,29 +32,29 @@
                 android:id="@+id/txt_blockclock_label_top"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/widget_text_secondary"
+                android:textColor="#E4E4E7"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="monospace"
                 android:includeFontPadding="false" />
 
             <!-- Separator line -->
             <FrameLayout
                 android:id="@+id/lbl_divider"
-                android:layout_width="16dp"
+                android:layout_width="20dp"
                 android:layout_height="1dp"
-                android:background="@color/widget_stroke_color"
-                android:layout_marginVertical="2.5dp" />
+                android:background="#E4E4E7"
+                android:layout_marginVertical="2dp" />
 
             <!-- Bottom text label (e.g. USD, TIME, BTC) -->
             <TextView
                 android:id="@+id/txt_blockclock_label_bottom"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/widget_text_secondary"
+                android:textColor="#E4E4E7"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="monospace"
                 android:includeFontPadding="false" />
         </LinearLayout>
 
@@ -64,10 +64,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:fontFamily="sans-serif-medium"
-            android:letterSpacing="-0.01"
+            android:fontFamily="monospace"
+            android:letterSpacing="-0.02"
             android:maxLines="1"
-            android:textColor="@color/widget_text_primary"
+            android:textColor="#E4E4E7"
             android:textSize="28sp"
             android:textStyle="bold" />
 
@@ -85,10 +85,10 @@
                 android:id="@+id/txt_blockclock_suffix"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/widget_text_secondary"
+                android:textColor="#E4E4E7"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="monospace"
                 android:includeFontPadding="false" />
         </LinearLayout>
     </LinearLayout>
@@ -118,16 +118,17 @@
                 android:textSize="10sp"
                 android:visibility="gone" />
 
-            <!-- Subtitle displays dynamic description in lowercase -->
+            <!-- Subtitle displays dynamic short description in lowercase -->
             <TextView
                 android:id="@+id/txt_blockclock_sub"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif"
+                android:fontFamily="monospace"
                 android:singleLine="true"
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="10sp" />
+                android:text="Market price of bitcoin"
+                android:textColor="#8E8E93"
+                android:textSize="9.5sp" />
         </LinearLayout>
     </RelativeLayout>
 </RelativeLayout>
