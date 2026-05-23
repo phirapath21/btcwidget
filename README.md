@@ -86,7 +86,7 @@ Seamlessly switch styles. The selected theme applies instantly to both your **in
    - Go to your home screen.
    - Long press on an empty space, tap **Widgets**.
    - Scroll down to find **Satoshi Dashboard** (or **Blockclock**).
-   - Drag either the 2x1 widget or the 4x2 Dual-Panel widget onto your home screen!
+   - Drag any of the resizable widgets (Blockclock, Quotes, or Halving Countdown) onto your home screen!
 
 ---
 
@@ -99,7 +99,9 @@ btcwidget/
 │   │   ├── main/
 │   │   │   ├── java/com/example/btcwidget/
 │   │   │   │   ├── BtcWidgetProvider.kt      # Main AppWidgetProvider (2x1) & intent routing
-│   │   │   │   ├── BtcDualWidgetProvider.kt  # Dual-Panel AppWidgetProvider (4x2)
+│   │   │   │   ├── BtcQuoteWidgetProvider.kt # Quotes Widget AppWidgetProvider
+│   │   │   │   ├── BtcHalvingWidgetProvider.kt# Halving Progress Bar Widget AppWidgetProvider
+│   │   │   │   ├── WidgetUpdater.kt          # Centralized widget updates controller
 │   │   │   │   ├── MainActivity.kt          # App entry point
 │   │   │   │   ├── PriceData.kt             # Data classes & Network repository
 │   │   │   │   ├── ui/main/
@@ -107,8 +109,9 @@ btcwidget/
 │   │   │   │   │   └── MainScreenViewModel.kt# Live data updates and caching
 │   │   │   └── res/
 │   │   │       ├── layout/
-│   │   │       │   ├── btc_widget_blockclock.xml # 2x1 Widget layout (XML layout)
-│   │   │       │   └── btc_dual_widget_blockclock.xml # 4x2 Widget layout (XML layout)
+│   │   │       │   ├── btc_widget_blockclock.xml # Blockclock Widget layout (XML layout)
+│   │   │       │   ├── btc_widget_quote.xml      # Quotes Widget layout (XML layout)
+│   │   │       │   └── btc_widget_halving.xml    # Halving Widget layout (XML layout)
 │   │   │       └── drawable/                # Theme background resources
 │   │   └── build.gradle.kts
 └── settings.gradle.kts

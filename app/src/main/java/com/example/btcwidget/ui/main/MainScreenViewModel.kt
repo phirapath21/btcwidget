@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.btcwidget.BtcWidgetProvider
+import com.example.btcwidget.WidgetUpdater
 import com.example.btcwidget.PriceData
 import com.example.btcwidget.PriceRepository
 import kotlinx.coroutines.Dispatchers
@@ -34,11 +34,8 @@ class MainScreenViewModel : ViewModel() {
                 PriceRepository.saveToPrefs(context, data)
                 _uiState.value = MainScreenUiState.Success(data)
                 
-                // Trigger widget update broadcast
-                val intent = Intent(context, BtcWidgetProvider::class.java).apply {
-                    action = BtcWidgetProvider.ACTION_REFRESH
-                }
-                context.sendBroadcast(intent)
+                // Trigger widget update directly
+                WidgetUpdater.updateAllWidgets(context)
             } else {
                 val cached = PriceRepository.getFromPrefs(context)
                 if (cached != null) {

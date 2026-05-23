@@ -4,8 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import com.example.btcwidget.BtcWidgetProvider
-import com.example.btcwidget.BtcDualWidgetProvider
 import com.example.btcwidget.R
+import com.example.btcwidget.WidgetUpdater
+import com.example.btcwidget.WidgetAlarmManager
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -49,6 +50,7 @@ fun MainScreen(
     var heroMetric by remember { mutableStateOf(prefs.getString("hero_metric", "BLOCK") ?: "BLOCK") }
     var currencySetting by remember { mutableStateOf(prefs.getString("currency", "USD") ?: "USD") }
     var hapticEnabled by remember { mutableStateOf(prefs.getBoolean("haptic_enabled", true)) }
+    var refreshInterval by remember { mutableStateOf(prefs.getInt("refresh_interval", 30)) }
 
     // Mode states for Settings
     val modeStates = remember {
@@ -64,33 +66,25 @@ fun MainScreen(
 
     LaunchedEffect(Unit) {
         viewModel.loadInitialData(context)
+        WidgetAlarmManager.scheduleAlarm(context)
     }
 
     val onThemeSelected: (Int) -> Unit = { newTheme ->
         prefs.edit().putInt("blockclock_theme", newTheme).apply()
         currentTheme = newTheme
-        // Broadcast custom action to refresh widgets instantly
-        val intent = Intent(context, BtcWidgetProvider::class.java).apply {
-            action = BtcWidgetProvider.ACTION_REFRESH
-        }
-        context.sendBroadcast(intent)
-        val dualIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
-            action = BtcDualWidgetProvider.ACTION_REFRESH
-        }
-        context.sendBroadcast(dualIntent)
+        WidgetUpdater.updateAllWidgets(context)
     }
 
     val onCurrencySelected: (String) -> Unit = { newCurrency ->
         prefs.edit().putString("currency", newCurrency).apply()
         currencySetting = newCurrency
-        val intent = Intent(context, BtcWidgetProvider::class.java).apply {
-            action = BtcWidgetProvider.ACTION_REFRESH
-        }
-        context.sendBroadcast(intent)
-        val dualIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
-            action = BtcDualWidgetProvider.ACTION_REFRESH
-        }
-        context.sendBroadcast(dualIntent)
+        WidgetUpdater.updateAllWidgets(context)
+    }
+
+    val onRefreshIntervalSelected: (Int) -> Unit = { newInterval ->
+        prefs.edit().putInt("refresh_interval", newInterval).apply()
+        refreshInterval = newInterval
+        WidgetAlarmManager.scheduleAlarm(context)
     }
 
     val onHapticToggle: (Boolean) -> Unit = { enabled ->
@@ -103,15 +97,8 @@ fun MainScreen(
         if (checked || enabledCount > 1) {
             prefs.edit().putBoolean("mode_enabled_$index", checked).apply()
             modeStates[index] = checked
+            WidgetUpdater.updateAllWidgets(context)
             viewModel.refreshData(context)
-            val widgetIntent = Intent(context, BtcWidgetProvider::class.java).apply {
-                action = BtcWidgetProvider.ACTION_REFRESH
-            }
-            context.sendBroadcast(widgetIntent)
-            val dualWidgetIntent = Intent(context, BtcDualWidgetProvider::class.java).apply {
-                action = BtcDualWidgetProvider.ACTION_REFRESH
-            }
-            context.sendBroadcast(dualWidgetIntent)
         }
     }
 
@@ -123,6 +110,8 @@ fun MainScreen(
         modeStates = modeStates,
         currencySetting = currencySetting,
         onCurrencySelected = onCurrencySelected,
+        refreshInterval = refreshInterval,
+        onRefreshIntervalSelected = onRefreshIntervalSelected,
         hapticEnabled = hapticEnabled,
         onHapticToggle = onHapticToggle,
         onHeroMetricSelected = onHeroMetricSelected,
@@ -452,6 +441,8 @@ fun DashboardContent(
 fun PreferencesPanelCard(
     currencySetting: String,
     onCurrencySelected: (String) -> Unit,
+    refreshInterval: Int,
+    onRefreshIntervalSelected: (Int) -> Unit,
     hapticEnabled: Boolean,
     onHapticToggle: (Boolean) -> Unit,
     cardBgColor: Color,
@@ -518,6 +509,55 @@ fun PreferencesPanelCard(
                         ) {
                             Text(
                                 text = curr,
+                                color = if (isSelected) borderColor else labelColor,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Refresh Interval row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Refresh Interval",
+                    color = valueColor,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Serif
+                )
+                
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(15, 30, 60).forEach { mins ->
+                        val isSelected = refreshInterval == mins
+                        val displayStr = "${mins}m"
+                        Box(
+                            modifier = Modifier
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) borderColor else labelColor.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .background(
+                                    color = if (isSelected) borderColor.copy(alpha = 0.15f) else Color.Transparent,
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .clickable { onRefreshIntervalSelected(mins) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = displayStr,
                                 color = if (isSelected) borderColor else labelColor,
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
@@ -864,6 +904,8 @@ fun SettingsScreen(
     modeStates: List<Boolean>,
     currencySetting: String,
     onCurrencySelected: (String) -> Unit,
+    refreshInterval: Int,
+    onRefreshIntervalSelected: (Int) -> Unit,
     hapticEnabled: Boolean,
     onHapticToggle: (Boolean) -> Unit,
     cardBgColor: Color,
@@ -915,6 +957,8 @@ fun SettingsScreen(
         PreferencesPanelCard(
             currencySetting = currencySetting,
             onCurrencySelected = onCurrencySelected,
+            refreshInterval = refreshInterval,
+            onRefreshIntervalSelected = onRefreshIntervalSelected,
             hapticEnabled = hapticEnabled,
             onHapticToggle = onHapticToggle,
             cardBgColor = cardBgColor,
@@ -1013,6 +1057,8 @@ fun MainScreenContent(
     modeStates: List<Boolean>,
     currencySetting: String,
     onCurrencySelected: (String) -> Unit,
+    refreshInterval: Int,
+    onRefreshIntervalSelected: (Int) -> Unit,
     hapticEnabled: Boolean,
     onHapticToggle: (Boolean) -> Unit,
     onHeroMetricSelected: (String) -> Unit,
@@ -1134,6 +1180,8 @@ fun MainScreenContent(
                         modeStates = modeStates,
                         currencySetting = currencySetting,
                         onCurrencySelected = onCurrencySelected,
+                        refreshInterval = refreshInterval,
+                        onRefreshIntervalSelected = onRefreshIntervalSelected,
                         hapticEnabled = hapticEnabled,
                         onHapticToggle = onHapticToggle,
                         cardBgColor = themeCardBgColor,
@@ -1274,6 +1322,8 @@ fun MainScreenPreview() {
             modeStates = List(13) { true },
             currencySetting = "USD",
             onCurrencySelected = {},
+            refreshInterval = 30,
+            onRefreshIntervalSelected = {},
             hapticEnabled = true,
             onHapticToggle = {},
             onHeroMetricSelected = {},
@@ -1313,6 +1363,8 @@ fun MainScreenSettingsPreview() {
             modeStates = List(13) { true },
             currencySetting = "USD",
             onCurrencySelected = {},
+            refreshInterval = 30,
+            onRefreshIntervalSelected = {},
             hapticEnabled = true,
             onHapticToggle = {},
             onHeroMetricSelected = {},
