@@ -13,6 +13,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.View
 import android.widget.RemoteViews
+import android.util.TypedValue
 
 class BtcQuoteWidgetProvider : AppWidgetProvider() {
 
@@ -47,6 +48,18 @@ class BtcQuoteWidgetProvider : AppWidgetProvider() {
             val quote = QUOTES[quoteIndex % QUOTES.size]
 
             val views = RemoteViews(context.packageName, R.layout.btc_widget_quote)
+
+            // Dynamic Bounds
+            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).let { if (it == 0) 110 else it }
+            val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).let { if (it == 0) 40 else it }
+
+            // Dynamic Font Sizing & Constraints
+            val (quoteSize, authorSize, maxLines) = if (height < 60) {
+                Triple((width * 0.08f).coerceIn(9f, 13f), (width * 0.06f).coerceIn(8f, 10f), 2)
+            } else {
+                Triple((width * 0.09f).coerceIn(11f, 16f), (width * 0.07f).coerceIn(9f, 12f), 4)
+            }
 
             // Theme colors and background resource mapping
             val bgResId: Int
@@ -121,6 +134,11 @@ class BtcQuoteWidgetProvider : AppWidgetProvider() {
             views.setInt(R.id.widget_root, "setBackgroundResource", bgResId)
             views.setTextColor(R.id.txt_quote_text, valueColor)
             views.setTextColor(R.id.txt_quote_author, labelColor)
+
+            // Dynamic Sizing
+            views.setTextViewTextSize(R.id.txt_quote_text, TypedValue.COMPLEX_UNIT_SP, quoteSize)
+            views.setInt(R.id.txt_quote_text, "setMaxLines", maxLines)
+            views.setTextViewTextSize(R.id.txt_quote_author, TypedValue.COMPLEX_UNIT_SP, authorSize)
 
             // Format quotation with typography quotes
             views.setTextViewText(R.id.txt_quote_text, "\"${quote.text}\"")
