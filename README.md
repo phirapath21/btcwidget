@@ -10,48 +10,62 @@ A premium, feature-rich Android app and Home Screen widget suite inspired by the
 
 ## ✨ Premium Features
 
-### 1. Interactive Widgets (2x1 and 4x2 Dual-Panel Layouts)
-- **Tap to Cycle**: Tap the widget panels to cycle through active info displays.
-- **Dual-Panel (4x2)**: Monitor two different metrics simultaneously side-by-side. Tap the left and right panels to cycle each side independently.
-- **Haptic Feedback**: Soft vibration feedback on taps confirms mode selection changes directly from your home screen.
-- **Stale Data Warning Badge**: Displays a subtle warning icon `(!)` in the corner of the widget if a background update fails, notifying you when you are viewing cached offline data.
-- **Dynamic Dashboard Previews**: Instant visual preview inside the settings app reflects your active theme, mimicking exactly how it will look on your home screen.
+### 1. Resizable & Interactive Widgets
+- **Resizable Layouts**: Widgets default to a 2x1 grid size but can be resized freely (horizontally and vertically) on your launcher.
+- **Three Unique Widget Types**:
+  - 🪙 **Blockclock Widget** — Cycles through 13 active Bitcoin/MSTR price and network metrics.
+  - 💬 **Quotes Widget** — Rotates classic, inspiring Cypherpunk and Bitcoin quotes (Satoshi Nakamoto, Hal Finney, Eric Hughes).
+  - ⏳ **Halving Countdown Progress Bar** — Renders a block-filled ASCII progress bar (`[████████░░░░░░░]`) showing percent progress, blocks remaining, or estimated days.
+- **Tap to Cycle**: Tap the widgets to cycle through modes or quotes on the fly.
+- **Custom Refresh Intervals**: Configure background updates (15m, 30m, 60m) inside settings to optimize battery life. Reschedules automatically on device boot.
+- **Haptic Feedback**: Soft vibration feedback on taps confirms mode selection changes. Respects global toggle.
+- **Stale Data Warning Badge**: Displays a warning icon `(!)` if a background update fails.
+- **Dynamic Dashboard Previews**: Settings app preview reflects your active theme in real-time.
 
-### 2. The 10 Information Modes
-1. **BTC/USD Price** — Spot price of Bitcoin (Coinbase API).
-2. **Sats per Dollar** — SATS per 1 USD (Moscow Time style, formatted).
-3. **Block Height** — Current Bitcoin block height (Mempool.space API).
-4. **Moscow Time (Clean)** — Full screen clean layout of SATS per dollar.
-5. **MSTR Holdings** — MicroStrategy's total Bitcoin holdings (843,738 BTC).
-6. **MSTR / BTC Ratio** — Share price to BTC ratio (value per share).
-7. **MSTR Stock Price** — MicroStrategy share price (Yahoo Finance API).
+### 2. The 13 Information Modes (Blockclock Widget)
+1. **BTC Price** — Spot price of Bitcoin (formatted as `X.xx mil` in Thai Baht or with symbol in USD).
+2. **Sats per Currency** — SATS per 1 USD/THB (Moscow Time style).
+3. **Block Height** — Current Bitcoin block height.
+4. **Moscow Time (Clean)** — Clean, distraction-free SATS-per-currency layout.
+5. **MSTR Holdings** — MicroStrategy's total Bitcoin holdings.
+6. **MSTR / BTC Ratio** — Share price to BTC ratio.
+7. **MSTR Stock Price** — MicroStrategy share price.
 8. **BTC Circulation** — Total circulating Bitcoin supply in millions (e.g. `19.850 MIL`).
-9. **Halving Countdown** — The number of blocks remaining until the next Bitcoin halving event.
-10. **Mempool Priority Fees** — Real-time recommended transaction fees (Fastest/Mid/Low) directly from Mempool.space.
+9. **Halving Countdown** — Blocks remaining until the next Bitcoin halving.
+10. **Mempool Fees** — Recommended transaction fees (Fastest/Mid/Low sat/vB).
+11. **Network Hash Rate** — Estimated network hashrate (3d) in EH/s.
+12. **Difficulty Adjustment** — Difficulty change percentage and retarget epoch progress.
+13. **Lightning Capacity** — Public Lightning Network capacity in BTC.
 
 ### 3. Active Mode Customization
-- Choose exactly which of the 10 modes are enabled for widget cycling. Disable modes you do not need, making cycling faster and more personalized.
+- Enable or disable specific Blockclock modes inside settings to customize your widget cycling.
 
 ### 4. Sleek Hardware Themes
-Seamlessly switch styles. The selected theme applies instantly to both your **in-app dashboard preview** and your **homescreen widgets**:
-- 🌑 **E-Ink Dark (Default)** — High contrast dark grey slate with gold borders.
-- ☀️ **E-Ink Light** — Clean zinc paper-white background with dark grey text.
-- 🍊 **Bitcoin Orange** — Energetic, warm orange accents.
-- 🧪 **Matrix Green** — Retro hacker terminal style with glowing emerald greens.
-- 👑 **Coinkite Gold** — Premium industrial gold accents on a charcoal canvas.
+Seamlessly switch styles. The selected theme applies instantly to both your in-app preview and widgets:
+- 🌑 **E-Ink Dark (Default)** — Charcoal canvas with gold borders.
+- ☀️ **E-Ink Light** — White E-ink paper background with dark grey text.
+- 🍊 **Bitcoin Orange** — Energetic warm orange accents.
+- 🧪 **Matrix Green** — Emerald hacker terminal theme.
+- 👑 **Coinkite Gold** — Premium industrial gold accents.
+- 🪵 **Terminal Amber** — Vintage monochrome amber phosphorus display.
+- 🔮 **Cyberpunk** — Futuristic neon pink and cyan glow.
+- 🌌 **Midnight Blue** — Deep night sky blue accents.
+- 🩸 **Cypherpunk** — Crimson red terminal theme.
+- 💊 **Orange Pill** — Clean monochrome orange pill theme.
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
 - **Core UI**: [Jetpack Compose](https://developer.android.com/jetpack/compose) & Material Design 3.
-- **Widget Engine**: Standard Android `AppWidgetProvider` paired with custom remote views tinting and state management.
+- **Background scheduling**: [AlarmManager](https://developer.android.com/reference/android/app/AlarmManager) with `BOOT_COMPLETED` reboot persistence.
+- **Widget Engine**: Standard Android `AppWidgetProvider` paired with custom remote views tinting.
 - **Concurrency & Network**: Kotlin Coroutines for asynchronous networking.
-- **Storage**: `SharedPreferences` for ultra-fast local caching of widget modes, selected themes, and API data.
+- **Storage**: `SharedPreferences` for caching widget modes, selected themes, and API data.
 - **API Integrations**:
-  - **Coinbase Spot API** (BTC Price)
+  - **Coinbase Spot API** (BTC Price & THB Rate)
   - **Yahoo Finance v8 API** (MSTR Price)
-  - **Mempool.space API** (Block Height & recommended fees)
+  - **Mempool.space API** (Block Height, Fees, Adjustment, Hashrate, Lightning Capacity)
   - **Blockchain.info API** (Circulating Supply Fallback)
 
 ---
