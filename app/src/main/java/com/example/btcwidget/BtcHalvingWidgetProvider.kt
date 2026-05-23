@@ -13,7 +13,6 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.View
 import android.widget.RemoteViews
-import android.util.TypedValue
 import java.util.Locale
 
 class BtcHalvingWidgetProvider : AppWidgetProvider() {
@@ -32,26 +31,6 @@ class BtcHalvingWidgetProvider : AppWidgetProvider() {
             val mode = getWidgetMode(context, appWidgetId)
 
             val views = RemoteViews(context.packageName, R.layout.btc_widget_halving)
-
-            // Dynamic Bounds
-            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).let { if (it == 0) 110 else it }
-            val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).let { if (it == 0) 40 else it }
-
-            // Dynamic Progress Bar length
-            val barWidth = when {
-                width < 150 -> 10
-                width < 250 -> 15
-                else -> 25
-            }
-
-            // Dynamic Font Sizing & Constraints
-            data class LayoutSizes(val valSize: Float, val barSize: Float, val subSize: Float, val showFooter: Boolean)
-            val sizes = if (height < 60) {
-                LayoutSizes((width * 0.12f).coerceIn(16f, 26f), (width * 0.07f).coerceIn(9f, 12f), 8f, false)
-            } else {
-                LayoutSizes((width * 0.14f).coerceIn(20f, 36f), (width * 0.08f).coerceIn(10f, 14f), (width * 0.05f).coerceIn(8.5f, 11f), true)
-            }
 
             // Theme colors and background resource mapping
             val bgResId: Int
@@ -138,7 +117,8 @@ class BtcHalvingWidgetProvider : AppWidgetProvider() {
             val blocksRemaining = 210000 - epochBlocksCompleted
             val remainingDays = blocksRemaining / 144.0 // 144 blocks per day (10 min avg)
 
-            // Generate progress bar [██████░░░░░]
+            // Generate progress bar [██████░░░░░] (width = 15)
+            val barWidth = 15
             val filledCount = (fraction * barWidth).toInt().coerceIn(0, barWidth)
             val emptyCount = barWidth - filledCount
             val barText = "[" + "█".repeat(filledCount) + "░".repeat(emptyCount) + "]"
@@ -174,14 +154,6 @@ class BtcHalvingWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.txt_halving_value, valueText)
             views.setTextViewText(R.id.txt_halving_progress_bar, barText)
             views.setTextViewText(R.id.txt_halving_sub, footerText.lowercase(Locale.US))
-
-            // Apply responsive text sizes
-            views.setTextViewTextSize(R.id.txt_halving_value, TypedValue.COMPLEX_UNIT_SP, sizes.valSize)
-            views.setTextViewTextSize(R.id.txt_halving_progress_bar, TypedValue.COMPLEX_UNIT_SP, sizes.barSize)
-            views.setTextViewTextSize(R.id.txt_halving_sub, TypedValue.COMPLEX_UNIT_SP, sizes.subSize)
-
-            // Dynamic visibility for subtext/footer
-            views.setViewVisibility(R.id.txt_halving_sub, if (sizes.showFooter) View.VISIBLE else View.GONE)
 
             // Tap layout to cycle display mode
             views.setOnClickPendingIntent(R.id.center_layout, getPendingSelfIntent(context, appWidgetId, ACTION_NEXT_MODE))

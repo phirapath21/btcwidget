@@ -17,7 +17,6 @@ import android.widget.RemoteViews
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import android.util.TypedValue
 import java.util.Locale
 
 class BtcWidgetProvider : AppWidgetProvider() {
@@ -35,11 +34,6 @@ class BtcWidgetProvider : AppWidgetProvider() {
             val mode = getWidgetMode(context, appWidgetId)
             val theme = getWidgetTheme(context)
             val views = RemoteViews(context.packageName, R.layout.btc_widget_blockclock)
-
-            // Dynamic Bounds
-            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).let { if (it == 0) 110 else it }
-            val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).let { if (it == 0) 40 else it }
 
             // Theme colors and background resource mapping
             val bgResId: Int
@@ -293,21 +287,6 @@ class BtcWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.txt_blockclock_label_top, labelTopText)
             views.setTextViewText(R.id.txt_blockclock_label_bottom, labelBottomText)
             
-            // Dynamic Sizing
-            val valTextSize = if (width < 140) {
-                (width * 0.14f).coerceIn(16f, 26f)
-            } else {
-                (width * 0.16f).coerceIn(24f, 40f)
-            }
-            val lblTextSize = if (width < 140) 9.5f else 11.5f
-            val subSize = (width * 0.05f).coerceIn(8.5f, 10f)
-
-            views.setTextViewTextSize(R.id.txt_blockclock_value, TypedValue.COMPLEX_UNIT_SP, valTextSize)
-            views.setTextViewTextSize(R.id.txt_blockclock_label_top, TypedValue.COMPLEX_UNIT_SP, lblTextSize)
-            views.setTextViewTextSize(R.id.txt_blockclock_label_bottom, TypedValue.COMPLEX_UNIT_SP, lblTextSize)
-            views.setTextViewTextSize(R.id.txt_blockclock_suffix, TypedValue.COMPLEX_UNIT_SP, lblTextSize)
-            views.setTextViewTextSize(R.id.txt_blockclock_sub, TypedValue.COMPLEX_UNIT_SP, subSize)
-
             // Toggle stacked label container visibility
             if (showLabel) {
                 views.setViewVisibility(R.id.lbl_stacked_container, View.VISIBLE)
@@ -315,9 +294,8 @@ class BtcWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.lbl_stacked_container, View.GONE)
             }
 
-            // Toggle subtext container visibility (hide if height is compact)
-            val finalShowSubText = showSubText && (height >= 60)
-            if (finalShowSubText) {
+            // Toggle subtext container visibility
+            if (showSubText) {
                 views.setViewVisibility(R.id.txt_blockclock_sub, View.VISIBLE)
             } else {
                 views.setViewVisibility(R.id.txt_blockclock_sub, View.GONE)
