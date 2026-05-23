@@ -10,6 +10,7 @@ import com.example.btcwidget.WidgetAlarmManager
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -40,6 +41,25 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 
 
+private fun formatLabelForTheme(label: String, currentTheme: Int): String {
+    if (currentTheme == 11) {
+        if (label.isEmpty()) return ""
+        val words = label.split(" ")
+        return words.joinToString(" ") { word ->
+            if (word.contains("/")) {
+                word.split("/").joinToString("/") { sub ->
+                    sub.lowercase(Locale.US).replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString() }
+                }
+            } else if (word.lowercase(Locale.US) == "usd" || word.lowercase(Locale.US) == "btc" || word.lowercase(Locale.US) == "thb") {
+                word.uppercase(Locale.US)
+            } else {
+                word.lowercase(Locale.US).replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString() }
+            }
+        }
+    }
+    return label
+}
+
 @Composable
 fun MainScreen(
     onItemClick: (NavKey) -> Unit,
@@ -49,7 +69,12 @@ fun MainScreen(
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val prefs = remember { context.getSharedPreferences("blockclock_prefs", Context.MODE_PRIVATE) }
-    var currentTheme by remember { mutableStateOf(prefs.getInt("blockclock_theme", 10)) }
+    val initialTheme = prefs.getInt("blockclock_theme", 0)
+    val sanitizedTheme = if (initialTheme == 0 || initialTheme == 1 || initialTheme == 9) initialTheme else 0
+    var currentTheme by remember { mutableStateOf(sanitizedTheme) }
+    if (initialTheme != sanitizedTheme) {
+        prefs.edit().putInt("blockclock_theme", sanitizedTheme).apply()
+    }
     var showSettings by remember { mutableStateOf(false) }
     var heroMetric by remember { mutableStateOf(prefs.getString("hero_metric", "BLOCK") ?: "BLOCK") }
     var currencySetting by remember { mutableStateOf(prefs.getString("currency", "USD") ?: "USD") }
@@ -134,7 +159,6 @@ fun ThemeSelectorSection(
     onThemeSelected: (Int) -> Unit,
     labelColor: Color
 ) {
-    val isDynamic = currentTheme == 10
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -145,8 +169,8 @@ fun ThemeSelectorSection(
             text = "Personalize Display",
             color = labelColor,
             fontSize = 12.sp,
-            fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
-            fontWeight = if (isDynamic) FontWeight.Medium else FontWeight.Normal,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
@@ -155,19 +179,10 @@ fun ThemeSelectorSection(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.horizontalScroll(rememberScrollState())
         ) {
-            val dynamicColor = MaterialTheme.colorScheme.primary
             val themesList = listOf(
-                Triple(10, "Dynamic", dynamicColor),
-                Triple(0, "Dark", Color(0xFF121214)),
-                Triple(1, "Light", Color(0xFFF4F4F5)),
-                Triple(2, "Orange", Color(0xFFF7931A)),
-                Triple(3, "Matrix", Color(0xFF10B981)),
-                Triple(4, "Gold", Color(0xFFC5A059)),
-                Triple(5, "Amber", Color(0xFFFFB000)),
-                Triple(6, "Cyber", Color(0xFFFF007F)),
-                Triple(7, "Midnt", Color(0xFF38BDF8)),
-                Triple(8, "Cypher", Color(0xFFFF0000)),
-                Triple(9, "Pill", Color(0xFFF7931A))
+                Triple(0, "Dark", Color(0xFF1C1C1E)),
+                Triple(1, "White", Color(0xFFFFFFFF)),
+                Triple(9, "Orange Pill", Color(0xFFF7931A))
             )
 
             themesList.forEach { (index, name, color) ->
@@ -182,7 +197,7 @@ fun ThemeSelectorSection(
                         .border(
                             width = if (isSelected) 3.dp else 1.dp,
                             color = if (isSelected) {
-                                if (index == 10) MaterialTheme.colorScheme.onBackground else Color.White
+                                if (index == 1) Color.Black else Color.White
                             } else {
                                 Color(0xFF8E8E93)
                             },
@@ -196,8 +211,6 @@ fun ThemeSelectorSection(
                             text = "✓",
                             color = if (index == 1) {
                                 Color.Black
-                            } else if (index == 10) {
-                                MaterialTheme.colorScheme.onPrimary
                             } else {
                                 Color.White
                             },
@@ -217,7 +230,7 @@ fun HeaderSection(
     subtitleColor: Color,
     currentTheme: Int
 ) {
-    val isDynamic = currentTheme == 10
+    val isModern = currentTheme == 10 || currentTheme == 11
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -225,19 +238,19 @@ fun HeaderSection(
             .padding(vertical = 12.dp)
     ) {
         Text(
-            text = if (isDynamic) "Satoshi Dashboard" else "SATOSHI DASHBOARD",
+            text = if (isModern) "Satoshi Dashboard" else "SATOSHI DASHBOARD",
             color = titleColor,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
-            letterSpacing = if (isDynamic) 0.sp else 1.sp
+            fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
+            letterSpacing = if (isModern) 0.sp else 1.sp
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Blockclock Micro Console",
             color = subtitleColor,
             fontSize = 13.sp,
-            fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif
+            fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif
         )
     }
 }
@@ -267,6 +280,8 @@ fun DashboardContent(
     currentTheme: Int
 ) {
     val isDynamic = currentTheme == 10
+    val isIos = currentTheme == 11
+    val isModern = isDynamic || isIos
     val isThb = currencySetting == "THB"
     val formattedBtcPrice = if (isThb) {
         String.format(Locale.US, "%.2f mil", data.btcThb / 1_000_000.0)
@@ -310,7 +325,7 @@ fun DashboardContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp),
-                shape = if (isDynamic) RoundedCornerShape(24.dp) else RoundedCornerShape(8.dp),
+                shape = if (isModern) (if (isIos) RoundedCornerShape(14.dp) else RoundedCornerShape(24.dp)) else RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF7F1D1D)),
                 border = BorderStroke(1.dp, Color(0xFFEF4444))
             ) {
@@ -327,7 +342,7 @@ fun DashboardContent(
                         text = "Offline Mode: Showing cached data. Check network status.",
                         color = Color(0xFFFCA5A5),
                         fontSize = 11.sp,
-                        fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif
+                        fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif
                     )
                 }
             }
@@ -383,16 +398,28 @@ fun DashboardContent(
             )
             chips.forEach { (label, key) ->
                 val isSelected = heroMetric == key
-                val shape = if (isDynamic) RoundedCornerShape(16.dp) else RoundedCornerShape(4.dp)
-                val chipBorder = if (isDynamic) null else BorderStroke(1.dp, if (isSelected) borderColor else labelColor.copy(alpha = 0.4f))
+                val shape = if (isModern) RoundedCornerShape(16.dp) else RoundedCornerShape(4.dp)
+                val chipBorder = if (isModern) null else BorderStroke(1.dp, if (isSelected) borderColor else labelColor.copy(alpha = 0.4f))
                 Box(
                     modifier = Modifier
                         .then(if (chipBorder != null) Modifier.border(chipBorder, shape) else Modifier)
                         .background(
                             color = if (isSelected) {
-                                if (isDynamic) MaterialTheme.colorScheme.primaryContainer else borderColor.copy(alpha = 0.15f)
+                                if (isDynamic) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else if (isIos) {
+                                    Color(0xFF007AFF)
+                                } else {
+                                    borderColor.copy(alpha = 0.15f)
+                                }
                             } else {
-                                if (isDynamic) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
+                                if (isDynamic) {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                } else if (isIos) {
+                                    if (isSystemInDarkTheme()) Color(0x551C1C1E) else Color(0x55E5E5EA)
+                                } else {
+                                    Color.Transparent
+                                }
                             },
                             shape = shape
                         )
@@ -400,15 +427,21 @@ fun DashboardContent(
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = if (isSelected && !isDynamic) "[$label]" else label,
+                        text = if (isSelected && !isModern) "[$label]" else {
+                            if (isIos) formatLabelForTheme(label, currentTheme) else label
+                        },
                         color = if (isSelected) {
-                            if (isDynamic) MaterialTheme.colorScheme.onPrimaryContainer else borderColor
+                            if (isDynamic) MaterialTheme.colorScheme.onPrimaryContainer
+                            else if (isIos) Color.White
+                            else borderColor
                         } else {
-                            if (isDynamic) MaterialTheme.colorScheme.onSurfaceVariant else labelColor
+                            if (isDynamic) MaterialTheme.colorScheme.onSurfaceVariant
+                            else if (isIos) Color(0xFF8E8E93)
+                            else labelColor
                         },
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Monospace
+                        fontFamily = if (isModern) FontFamily.Default else FontFamily.Monospace
                     )
                 }
             }
@@ -461,7 +494,7 @@ fun DashboardContent(
             text = "Last updated: ${sdf.format(Date(data.timestamp))}",
             color = subTextColor,
             fontSize = 11.sp,
-            fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
+            fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
             modifier = Modifier.padding(bottom = 16.dp)
         )
     }
@@ -483,25 +516,27 @@ fun PreferencesPanelCard(
     currentTheme: Int
 ) {
     val isDynamic = currentTheme == 10
+    val isIos = currentTheme == 11
+    val isModern = isDynamic || isIos
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp),
-        shape = if (isDynamic) RoundedCornerShape(24.dp) else RoundedCornerShape(12.dp),
+        shape = if (isIos) RoundedCornerShape(14.dp) else if (isDynamic) RoundedCornerShape(24.dp) else RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardBgColor),
-        border = if (isDynamic) null else BorderStroke(1.5.dp, borderColor)
+        border = if (isModern) (if (isIos) BorderStroke(1.dp, if (isSystemInDarkTheme()) Color(0x2BFFFFFF) else Color(0x52FFFFFF)) else null) else BorderStroke(1.5.dp, borderColor)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (isDynamic) "Preferences" else "PREFERENCES",
+                text = if (isModern) "Preferences" else "PREFERENCES",
                 color = valueColor,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
-                letterSpacing = if (isDynamic) 0.sp else 1.sp
+                fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
+                letterSpacing = if (isModern) 0.sp else 1.sp
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -517,7 +552,7 @@ fun PreferencesPanelCard(
                     text = "Currency",
                     color = valueColor,
                     fontSize = 12.sp,
-                    fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif
+                    fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif
                 )
                 
                 Row(
@@ -525,16 +560,28 @@ fun PreferencesPanelCard(
                 ) {
                     listOf("USD", "THB").forEach { curr ->
                         val isSelected = currencySetting == curr
-                        val shape = if (isDynamic) RoundedCornerShape(16.dp) else RoundedCornerShape(4.dp)
-                        val itemBorder = if (isDynamic) null else BorderStroke(1.dp, if (isSelected) borderColor else labelColor.copy(alpha = 0.4f))
+                        val shape = if (isModern) RoundedCornerShape(16.dp) else RoundedCornerShape(4.dp)
+                        val itemBorder = if (isModern) null else BorderStroke(1.dp, if (isSelected) borderColor else labelColor.copy(alpha = 0.4f))
                         Box(
                             modifier = Modifier
                                 .then(if (itemBorder != null) Modifier.border(itemBorder, shape) else Modifier)
                                 .background(
                                     color = if (isSelected) {
-                                        if (isDynamic) MaterialTheme.colorScheme.primaryContainer else borderColor.copy(alpha = 0.15f)
+                                        if (isDynamic) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else if (isIos) {
+                                            Color(0xFF007AFF)
+                                        } else {
+                                            borderColor.copy(alpha = 0.15f)
+                                        }
                                     } else {
-                                        if (isDynamic) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
+                                        if (isDynamic) {
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        } else if (isIos) {
+                                            if (isSystemInDarkTheme()) Color(0x551C1C1E) else Color(0x55E5E5EA)
+                                        } else {
+                                            Color.Transparent
+                                        }
                                     },
                                     shape = shape
                                 )
@@ -544,13 +591,17 @@ fun PreferencesPanelCard(
                             Text(
                                 text = curr,
                                 color = if (isSelected) {
-                                    if (isDynamic) MaterialTheme.colorScheme.onPrimaryContainer else borderColor
+                                    if (isDynamic) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else if (isIos) Color.White
+                                    else borderColor
                                 } else {
-                                    if (isDynamic) MaterialTheme.colorScheme.onSurfaceVariant else labelColor
+                                    if (isDynamic) MaterialTheme.colorScheme.onSurfaceVariant
+                                    else if (isIos) Color(0xFF8E8E93)
+                                    else labelColor
                                 },
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Monospace
+                                fontFamily = if (isModern) FontFamily.Default else FontFamily.Monospace
                             )
                         }
                     }
@@ -571,7 +622,7 @@ fun PreferencesPanelCard(
                     text = "Refresh Interval",
                     color = valueColor,
                     fontSize = 12.sp,
-                    fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif
+                    fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif
                 )
                 
                 Row(
@@ -580,16 +631,28 @@ fun PreferencesPanelCard(
                     listOf(15, 30, 60).forEach { mins ->
                         val isSelected = refreshInterval == mins
                         val displayStr = "${mins}m"
-                        val shape = if (isDynamic) RoundedCornerShape(16.dp) else RoundedCornerShape(4.dp)
-                        val itemBorder = if (isDynamic) null else BorderStroke(1.dp, if (isSelected) borderColor else labelColor.copy(alpha = 0.4f))
+                        val shape = if (isModern) RoundedCornerShape(16.dp) else RoundedCornerShape(4.dp)
+                        val itemBorder = if (isModern) null else BorderStroke(1.dp, if (isSelected) borderColor else labelColor.copy(alpha = 0.4f))
                         Box(
                             modifier = Modifier
                                 .then(if (itemBorder != null) Modifier.border(itemBorder, shape) else Modifier)
                                 .background(
                                     color = if (isSelected) {
-                                        if (isDynamic) MaterialTheme.colorScheme.primaryContainer else borderColor.copy(alpha = 0.15f)
+                                        if (isDynamic) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else if (isIos) {
+                                            Color(0xFF007AFF)
+                                        } else {
+                                            borderColor.copy(alpha = 0.15f)
+                                        }
                                     } else {
-                                        if (isDynamic) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
+                                        if (isDynamic) {
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        } else if (isIos) {
+                                            if (isSystemInDarkTheme()) Color(0x551C1C1E) else Color(0x55E5E5EA)
+                                        } else {
+                                            Color.Transparent
+                                        }
                                     },
                                     shape = shape
                                 )
@@ -599,13 +662,17 @@ fun PreferencesPanelCard(
                             Text(
                                 text = displayStr,
                                 color = if (isSelected) {
-                                    if (isDynamic) MaterialTheme.colorScheme.onPrimaryContainer else borderColor
+                                    if (isDynamic) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else if (isIos) Color.White
+                                    else borderColor
                                 } else {
-                                    if (isDynamic) MaterialTheme.colorScheme.onSurfaceVariant else labelColor
+                                    if (isDynamic) MaterialTheme.colorScheme.onSurfaceVariant
+                                    else if (isIos) Color(0xFF8E8E93)
+                                    else labelColor
                                 },
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Monospace
+                                fontFamily = if (isModern) FontFamily.Default else FontFamily.Monospace
                             )
                         }
                     }
@@ -627,18 +694,27 @@ fun PreferencesPanelCard(
                     text = "Vibration & Haptics",
                     color = valueColor,
                     fontSize = 12.sp,
-                    fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif
+                    fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif
                 )
-                if (isDynamic) {
+                if (isModern) {
                     Switch(
                         checked = hapticEnabled,
                         onCheckedChange = { checked ->
                             onHapticToggle(checked)
                         },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
-                        )
+                        colors = if (isIos) {
+                            SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF34C759),
+                                uncheckedThumbColor = Color.White,
+                                uncheckedTrackColor = if (isSystemInDarkTheme()) Color(0xFF3A3A3C) else Color(0xFFE9E9EB)
+                            )
+                        } else {
+                            SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     )
                 } else {
                     Checkbox(
@@ -671,25 +747,27 @@ fun SettingsPanelCard(
     currentTheme: Int
 ) {
     val isDynamic = currentTheme == 10
+    val isIos = currentTheme == 11
+    val isModern = isDynamic || isIos
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp),
-        shape = if (isDynamic) RoundedCornerShape(24.dp) else RoundedCornerShape(12.dp),
+        shape = if (isIos) RoundedCornerShape(14.dp) else if (isDynamic) RoundedCornerShape(24.dp) else RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardBgColor),
-        border = if (isDynamic) null else BorderStroke(1.5.dp, borderColor)
+        border = if (isModern) (if (isIos) BorderStroke(1.dp, if (isSystemInDarkTheme()) Color(0x2BFFFFFF) else Color(0x52FFFFFF)) else null) else BorderStroke(1.5.dp, borderColor)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (isDynamic) "Active Modes" else "SYSTEM SETTINGS",
+                text = if (isModern) "Active Modes" else "SYSTEM SETTINGS",
                 color = valueColor,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
-                letterSpacing = if (isDynamic) 0.sp else 1.sp
+                fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
+                letterSpacing = if (isModern) 0.sp else 1.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -698,7 +776,7 @@ fun SettingsPanelCard(
                 text = "Active Widget Modes",
                 color = labelColor,
                 fontSize = 11.sp,
-                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
+                fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
                 modifier = Modifier.align(Alignment.Start)
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -741,19 +819,28 @@ fun SettingsPanelCard(
                             text = name,
                             color = valueColor,
                             fontSize = 12.sp,
-                            fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
+                            fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
                             modifier = Modifier.weight(1f)
                         )
-                        if (isDynamic) {
+                        if (isModern) {
                             Switch(
                                 checked = isChecked,
                                 onCheckedChange = { checked ->
                                     onModeToggle(index, checked)
                                 },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primary
-                                )
+                                colors = if (isIos) {
+                                    SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = Color(0xFF34C759),
+                                        uncheckedThumbColor = Color.White,
+                                        uncheckedTrackColor = if (isSystemInDarkTheme()) Color(0xFF3A3A3C) else Color(0xFFE9E9EB)
+                                    )
+                                } else {
+                                    SwitchDefaults.colors(
+                                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             )
                         } else {
                             Checkbox(
@@ -791,13 +878,15 @@ fun HeroBlockclockCard(
     currentTheme: Int = 10
 ) {
     val isDynamic = currentTheme == 10
+    val isIos = currentTheme == 11
+    val isModern = isDynamic || isIos
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(140.dp),
-        shape = if (isDynamic) RoundedCornerShape(28.dp) else RoundedCornerShape(12.dp),
+        shape = if (isIos) RoundedCornerShape(14.dp) else if (isDynamic) RoundedCornerShape(28.dp) else RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardBgColor),
-        border = if (isDynamic) null else BorderStroke(2.dp, borderColor)
+        border = if (isModern) (if (isIos) BorderStroke(1.dp, if (isSystemInDarkTheme()) Color(0x2BFFFFFF) else Color(0x52FFFFFF)) else null) else BorderStroke(2.dp, borderColor)
     ) {
         Column(
             modifier = Modifier
@@ -812,20 +901,20 @@ fun HeroBlockclockCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (labelBottom.isNotEmpty()) "$labelTop // $labelBottom" else labelTop,
+                    text = if (labelBottom.isNotEmpty()) "${formatLabelForTheme(labelTop, currentTheme)} // ${formatLabelForTheme(labelBottom, currentTheme)}" else formatLabelForTheme(labelTop, currentTheme),
                     color = labelColor,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Monospace,
-                    letterSpacing = if (isDynamic) 0.sp else 1.sp
+                    fontFamily = if (isModern) FontFamily.Default else FontFamily.Monospace,
+                    letterSpacing = if (isModern) 0.sp else 1.sp
                 )
 
                 Text(
-                    text = if (isDynamic) "Hero Metric" else "◆ HERO STATUS ◆",
-                    color = if (isDynamic) MaterialTheme.colorScheme.primary else borderColor,
+                    text = if (isModern) "Hero Metric" else "◆ HERO STATUS ◆",
+                    color = if (isModern) (if (isIos) Color(0xFF007AFF) else MaterialTheme.colorScheme.primary) else borderColor,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Monospace
+                    fontFamily = if (isModern) FontFamily.Default else FontFamily.Monospace
                 )
             }
 
@@ -839,18 +928,18 @@ fun HeroBlockclockCard(
                     color = valueColor,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
+                    fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
                     letterSpacing = (-0.5).sp,
                     maxLines = 1
                 )
                 if (suffix.isNotEmpty()) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = suffix,
+                        text = if (isIos) formatLabelForTheme(suffix, currentTheme) else suffix,
                         color = labelColor,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif
+                        fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif
                     )
                 }
             }
@@ -859,7 +948,7 @@ fun HeroBlockclockCard(
                 text = subtext,
                 color = subTextColor,
                 fontSize = 10.sp,
-                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
+                fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
                 fontWeight = FontWeight.Normal
             )
         }
@@ -885,13 +974,15 @@ fun BlockclockCard(
     currentTheme: Int = 10
 ) {
     val isDynamic = currentTheme == 10
+    val isIos = currentTheme == 11
+    val isModern = isDynamic || isIos
     Card(
         modifier = modifier
             .fillMaxWidth()
             .height(115.dp),
-        shape = if (isDynamic) RoundedCornerShape(24.dp) else RoundedCornerShape(12.dp),
+        shape = if (isIos) RoundedCornerShape(14.dp) else if (isDynamic) RoundedCornerShape(24.dp) else RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardBgColor),
-        border = if (isDynamic) null else BorderStroke(1.5.dp, borderColor)
+        border = if (isModern) (if (isIos) BorderStroke(1.dp, if (isSystemInDarkTheme()) Color(0x2BFFFFFF) else Color(0x52FFFFFF)) else null) else BorderStroke(1.5.dp, borderColor)
     ) {
         Column(
             modifier = Modifier
@@ -913,11 +1004,11 @@ fun BlockclockCard(
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Text(
-                            text = labelTop,
+                            text = formatLabelForTheme(labelTop, currentTheme),
                             color = labelColor,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Monospace
+                            fontFamily = if (isModern) FontFamily.Default else FontFamily.Monospace
                         )
                         if (labelBottom.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(2.dp))
@@ -929,11 +1020,11 @@ fun BlockclockCard(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = labelBottom,
+                                text = formatLabelForTheme(labelBottom, currentTheme),
                                 color = labelColor,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Monospace
+                                fontFamily = if (isModern) FontFamily.Default else FontFamily.Monospace
                             )
                         }
                     }
@@ -943,7 +1034,7 @@ fun BlockclockCard(
                     color = valueColor,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
+                    fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
                     letterSpacing = (-0.5).sp,
                     maxLines = 1
                 )
@@ -951,11 +1042,11 @@ fun BlockclockCard(
                 if (suffix.isNotEmpty()) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = suffix,
+                        text = if (isIos) formatLabelForTheme(suffix, currentTheme) else suffix,
                         color = labelColor,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif
+                        fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif
                     )
                 }
             }
@@ -965,7 +1056,7 @@ fun BlockclockCard(
                     text = subtext,
                     color = subTextColor,
                     fontSize = 8.sp,
-                    fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
+                    fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
                     fontWeight = FontWeight.Normal,
                     modifier = Modifier.padding(bottom = 2.dp)
                 )
@@ -992,7 +1083,7 @@ fun SettingsScreen(
     labelColor: Color,
     subTextColor: Color
 ) {
-    val isDynamic = currentTheme == 10
+    val isModern = currentTheme == 10 || currentTheme == 11
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1007,19 +1098,19 @@ fun SettingsScreen(
                 .padding(vertical = 12.dp)
         ) {
             Text(
-                text = if (isDynamic) "Console Settings" else "CONSOLE SETTINGS",
+                text = if (isModern) "Console Settings" else "CONSOLE SETTINGS",
                 color = borderColor,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif,
-                letterSpacing = if (isDynamic) 0.sp else 1.sp
+                fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif,
+                letterSpacing = if (isModern) 0.sp else 1.sp
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Personalization & System Settings",
                 color = labelColor,
                 fontSize = 13.sp,
-                fontFamily = if (isDynamic) FontFamily.Default else FontFamily.Serif
+                fontFamily = if (isModern) FontFamily.Default else FontFamily.Serif
             )
         }
 
@@ -1158,100 +1249,53 @@ fun MainScreenContent(
     val themeBorderColor: Color
 
     when (currentTheme) {
-        10 -> { // Android 16 Dynamic Theme
-            themeBgColor = MaterialTheme.colorScheme.background
-            themeCardBgColor = MaterialTheme.colorScheme.surfaceVariant
-            themeValueColor = MaterialTheme.colorScheme.onSurface
-            themeLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-            themeSubTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-            themeBorderColor = MaterialTheme.colorScheme.primary
+        1 -> { // White / Light Theme
+            themeBgColor = Color(0xFFF2F2F7)
+            themeCardBgColor = Color(0x73FFFFFF)
+            themeValueColor = Color(0xFF000000)
+            themeLabelColor = Color(0xFF8E8E93)
+            themeSubTextColor = Color(0xFF8E8E93)
+            themeBorderColor = Color(0xFF007AFF)
         }
-        1 -> { // E-Ink Light
-            themeBgColor = Color(0xFFE4E4E7)
-            themeCardBgColor = Color(0xFFF4F4F5)
-            themeValueColor = Color(0xFF18181B)
-            themeLabelColor = Color(0xFF71717A)
-            themeSubTextColor = Color(0xFF71717A)
-            themeBorderColor = Color(0xFF18181B)
-        }
-        2 -> { // Bitcoin Orange
-            themeBgColor = Color(0xFF78350F)
-            themeCardBgColor = Color(0xFFF7931A)
-            themeValueColor = Color(0xFF121214)
-            themeLabelColor = Color(0xFF8A6D3B)
-            themeSubTextColor = Color(0xFF78350F)
-            themeBorderColor = Color(0xFF121214)
-        }
-        3 -> { // Matrix Green
-            themeBgColor = Color(0xFF022C22)
-            themeCardBgColor = Color(0xFF0A0A0C)
-            themeValueColor = Color(0xFF10B981)
-            themeLabelColor = Color(0xFF047857)
-            themeSubTextColor = Color(0xFF047857)
-            themeBorderColor = Color(0xFF10B981)
-        }
-        4 -> { // Coinkite Gold
-            themeBgColor = Color(0xFF0C0C0E)
-            themeCardBgColor = Color(0xFF121214)
-            themeValueColor = Color(0xFFC5A059)
-            themeLabelColor = Color(0xFF8A6D3B)
-            themeSubTextColor = Color(0xFF8A6D3B)
-            themeBorderColor = Color(0xFFC5A059)
-        }
-        5 -> { // Terminal Amber
-            themeBgColor = Color(0xFF0A0500)
-            themeCardBgColor = Color(0xFF140B00)
-            themeValueColor = Color(0xFFFFB000)
-            themeLabelColor = Color(0xFF805800)
-            themeSubTextColor = Color(0xFF805800)
-            themeBorderColor = Color(0xFFFFB000)
-        }
-        6 -> { // Cyberpunk
-            themeBgColor = Color(0xFF050014)
-            themeCardBgColor = Color(0xFF0E0826)
-            themeValueColor = Color(0xFFFF007F)
-            themeLabelColor = Color(0xFF00F5FF)
-            themeSubTextColor = Color(0xFF00F5FF)
-            themeBorderColor = Color(0xFFFF007F)
-        }
-        7 -> { // Midnight Blue
-            themeBgColor = Color(0xFF020617)
-            themeCardBgColor = Color(0xFF0F172A)
-            themeValueColor = Color(0xFF38BDF8)
-            themeLabelColor = Color(0xFF64748B)
-            themeSubTextColor = Color(0xFF64748B)
-            themeBorderColor = Color(0xFF38BDF8)
-        }
-        8 -> { // Cypherpunk
-            themeBgColor = Color(0xFF000000)
-            themeCardBgColor = Color(0xFF0C0202)
-            themeValueColor = Color(0xFFFF0000)
-            themeLabelColor = Color(0xFF880000)
-            themeSubTextColor = Color(0xFF880000)
-            themeBorderColor = Color(0xFFFF0000)
-        }
-        9 -> { // Orange Pill
-            themeBgColor = Color(0xFF000000)
-            themeCardBgColor = Color(0xFF0E0800)
+        9 -> { // Orange Pill Theme
+            themeBgColor = Color(0xFF050200)
+            themeCardBgColor = Color(0x731E0E05)
             themeValueColor = Color(0xFFF7931A)
             themeLabelColor = Color(0xFFA66210)
             themeSubTextColor = Color(0xFFA66210)
             themeBorderColor = Color(0xFFF7931A)
         }
-        else -> { // E-Ink Dark (Default)
-            themeBgColor = Color(0xFF0C0C0E)
-            themeCardBgColor = Color(0xFF121214)
-            themeValueColor = Color(0xFFE4E4E7)
+        else -> { // Dark Theme (Default / Theme 0)
+            themeBgColor = Color(0xFF000000)
+            themeCardBgColor = Color(0x661C1C1E)
+            themeValueColor = Color(0xFFFFFFFF)
             themeLabelColor = Color(0xFF8E8E93)
             themeSubTextColor = Color(0xFF8E8E93)
-            themeBorderColor = Color(0xFFC5A059)
+            themeBorderColor = Color(0xFF007AFF)
+        }
+    }
+
+    val backgroundModifier = when (currentTheme) {
+        1 -> { // White / Light Theme
+            Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(Color(0xFFF5E6E8), Color(0xFFD4E6F1), Color(0xFFEAF2F8))
+            ))
+        }
+        9 -> { // Orange Pill Theme
+            Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(Color(0xFF2C0F00), Color(0xFF140700), Color(0xFF050200))
+            ))
+        }
+        else -> { // Dark Theme (Default / Theme 0)
+            Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(Color(0xFF141527), Color(0xFF2A1B4E), Color(0xFF0B0C16))
+            ))
         }
     }
 
     Box(
-        modifier = Modifier
+        modifier = backgroundModifier
             .fillMaxSize()
-            .background(themeBgColor)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -1325,97 +1369,42 @@ fun MainScreenContent(
                 }
             }
 
-            val isDynamic = currentTheme == 10
-            if (isDynamic) {
-                NavigationBar(
-                    containerColor = themeBgColor,
-                    tonalElevation = 8.dp
-                ) {
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home", fontFamily = FontFamily.Default) },
-                        selected = !showSettings,
-                        onClick = { onShowSettingsChange(false) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            val selectedAccent = if (currentTheme == 9) Color(0xFFF7931A) else Color(0xFF007AFF)
+            val navBg = when (currentTheme) {
+                1 -> Color(0x99F2F2F7)
+                9 -> Color(0x99140700)
+                else -> Color(0x991C1C1E)
+            }
+            NavigationBar(
+                containerColor = navBg,
+                tonalElevation = 0.dp
+            ) {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Home", fontFamily = FontFamily.Default) },
+                    selected = !showSettings,
+                    onClick = { onShowSettingsChange(false) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = selectedAccent,
+                        selectedTextColor = selectedAccent,
+                        indicatorColor = Color.Transparent,
+                        unselectedIconColor = Color(0xFF8E8E93),
+                        unselectedTextColor = Color(0xFF8E8E93)
                     )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings", fontFamily = FontFamily.Default) },
-                        selected = showSettings,
-                        onClick = { onShowSettingsChange(true) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                    label = { Text("Settings", fontFamily = FontFamily.Default) },
+                    selected = showSettings,
+                    onClick = { onShowSettingsChange(true) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = selectedAccent,
+                        selectedTextColor = selectedAccent,
+                        indicatorColor = Color.Transparent,
+                        unselectedIconColor = Color(0xFF8E8E93),
+                        unselectedTextColor = Color(0xFF8E8E93)
                     )
-                }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(themeBgColor)
-                        .border(BorderStroke(0.dp, themeBorderColor.copy(alpha = 0.3f)))
-                        .padding(vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val isHome = !showSettings
-                    Box(
-                        modifier = Modifier
-                            .border(
-                                width = 1.dp,
-                                color = if (isHome) themeBorderColor else Color.Transparent,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .background(
-                                color = if (isHome) themeBorderColor.copy(alpha = 0.15f) else Color.Transparent,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .clickable { onShowSettingsChange(false) }
-                            .padding(horizontal = 24.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = if (isHome) "◆ HOME ◆" else "  HOME  ",
-                            color = if (isHome) themeBorderColor else themeLabelColor,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
-                    val isSettings = showSettings
-                    Box(
-                        modifier = Modifier
-                            .border(
-                                width = 1.dp,
-                                color = if (isSettings) themeBorderColor else Color.Transparent,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .background(
-                                color = if (isSettings) themeBorderColor.copy(alpha = 0.15f) else Color.Transparent,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .clickable { onShowSettingsChange(true) }
-                            .padding(horizontal = 24.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = if (isSettings) "◆ SETTINGS ◆" else "  SETTINGS  ",
-                            color = if (isSettings) themeBorderColor else themeLabelColor,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
+                )
             }
         }
     }
